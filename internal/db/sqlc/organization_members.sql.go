@@ -113,7 +113,7 @@ func (q *Queries) ListOrgMembers(ctx context.Context, orgID string) ([]Organizat
 }
 
 const listUserOrgs = `-- name: ListUserOrgs :many
-SELECT o.id, o.name, o.slug, o.created_at, o.updated_at, o.type FROM organizations o
+SELECT o.id, o.name, o.slug, o.created_at, o.updated_at, o.type, o.is_active, o.website, o.description FROM organizations o
 JOIN organization_members m ON m.org_id = o.id
 WHERE m.user_id = $1
 ORDER BY o.name
@@ -135,6 +135,9 @@ func (q *Queries) ListUserOrgs(ctx context.Context, userID string) ([]Organizati
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Type,
+			&i.IsActive,
+			&i.Website,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}

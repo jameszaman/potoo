@@ -10,16 +10,18 @@ import (
 )
 
 const createOrganization = `-- name: CreateOrganization :one
-INSERT INTO organizations (id, name, slug, type)
-VALUES ($1, $2, $3, $4)
-RETURNING id, name, slug, created_at, updated_at, type
+INSERT INTO organizations (id, name, slug, type, website, description)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, name, slug, created_at, updated_at, type, is_active, website, description
 `
 
 type CreateOrganizationParams struct {
-	ID   string  `db:"id" json:"id"`
-	Name string  `db:"name" json:"name"`
-	Slug string  `db:"slug" json:"slug"`
-	Type OrgType `db:"type" json:"type"`
+	ID          string  `db:"id" json:"id"`
+	Name        string  `db:"name" json:"name"`
+	Slug        string  `db:"slug" json:"slug"`
+	Type        OrgType `db:"type" json:"type"`
+	Website     *string `db:"website" json:"website"`
+	Description *string `db:"description" json:"description"`
 }
 
 func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error) {
@@ -28,6 +30,8 @@ func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganization
 		arg.Name,
 		arg.Slug,
 		arg.Type,
+		arg.Website,
+		arg.Description,
 	)
 	var i Organization
 	err := row.Scan(
@@ -37,12 +41,33 @@ func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganization
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Type,
+		&i.IsActive,
+		&i.Website,
+		&i.Description,
 	)
 	return i, err
 }
 
+const getOrgStats = `-- name: GetOrgStats :one
+SELECT
+    (SELECT COUNT(*) FROM api_keys      WHERE api_keys.organization_id = $1 AND revoked_at IS NULL) AS api_key_count,
+    (SELECT COUNT(*) FROM notifications WHERE notifications.organization_id = $1)                    AS call_count
+`
+
+type GetOrgStatsRow struct {
+	ApiKeyCount int64 `db:"api_key_count" json:"api_key_count"`
+	CallCount   int64 `db:"call_count" json:"call_count"`
+}
+
+func (q *Queries) GetOrgStats(ctx context.Context, organizationID string) (GetOrgStatsRow, error) {
+	row := q.db.QueryRow(ctx, getOrgStats, organizationID)
+	var i GetOrgStatsRow
+	err := row.Scan(&i.ApiKeyCount, &i.CallCount)
+	return i, err
+}
+
 const getOrganizationByID = `-- name: GetOrganizationByID :one
-SELECT id, name, slug, created_at, updated_at, type FROM organizations WHERE id = $1
+SELECT id, name, slug, created_at, updated_at, type, is_active, website, description FROM organizations WHERE id = $1
 `
 
 func (q *Queries) GetOrganizationByID(ctx context.Context, id string) (Organization, error) {
@@ -55,12 +80,15 @@ func (q *Queries) GetOrganizationByID(ctx context.Context, id string) (Organizat
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Type,
+		&i.IsActive,
+		&i.Website,
+		&i.Description,
 	)
 	return i, err
 }
 
 const getOrganizationBySlug = `-- name: GetOrganizationBySlug :one
-SELECT id, name, slug, created_at, updated_at, type FROM organizations WHERE slug = $1
+SELECT id, name, slug, created_at, updated_at, type, is_active, website, description FROM organizations WHERE slug = $1
 `
 
 func (q *Queries) GetOrganizationBySlug(ctx context.Context, slug string) (Organization, error) {
@@ -73,12 +101,15 @@ func (q *Queries) GetOrganizationBySlug(ctx context.Context, slug string) (Organ
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Type,
+		&i.IsActive,
+		&i.Website,
+		&i.Description,
 	)
 	return i, err
 }
 
 const getPlatformOrg = `-- name: GetPlatformOrg :one
-SELECT id, name, slug, created_at, updated_at, type FROM organizations WHERE type = 'platform' LIMIT 1
+SELECT id, name, slug, created_at, updated_at, type, is_active, website, description FROM organizations WHERE type = 'platform' LIMIT 1
 `
 
 func (q *Queries) GetPlatformOrg(ctx context.Context) (Organization, error) {
@@ -91,12 +122,15 @@ func (q *Queries) GetPlatformOrg(ctx context.Context) (Organization, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Type,
+		&i.IsActive,
+		&i.Website,
+		&i.Description,
 	)
 	return i, err
 }
 
 const listOrganizations = `-- name: ListOrganizations :many
-SELECT id, name, slug, created_at, updated_at, type FROM organizations ORDER BY name
+SELECT id, name, slug, created_at, updated_at, type, is_active, website, description FROM organizations ORDER BY name
 `
 
 func (q *Queries) ListOrganizations(ctx context.Context) ([]Organization, error) {
@@ -115,6 +149,9 @@ func (q *Queries) ListOrganizations(ctx context.Context) ([]Organization, error)
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Type,
+			&i.IsActive,
+			&i.Website,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}
@@ -135,4 +172,34 @@ func (q *Queries) PlatformOrgExists(ctx context.Context) (bool, error) {
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const setOrgActive = `-- name: SetOrgActive :one
+UPDATE organizations
+SET is_active  = $2,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, name, slug, created_at, updated_at, type, is_active, website, description
+`
+
+type SetOrgActiveParams struct {
+	ID       string `db:"id" json:"id"`
+	IsActive bool   `db:"is_active" json:"is_active"`
+}
+
+func (q *Queries) SetOrgActive(ctx context.Context, arg SetOrgActiveParams) (Organization, error) {
+	row := q.db.QueryRow(ctx, setOrgActive, arg.ID, arg.IsActive)
+	var i Organization
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Type,
+		&i.IsActive,
+		&i.Website,
+		&i.Description,
+	)
+	return i, err
 }

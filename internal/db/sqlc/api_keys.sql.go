@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countActiveAPIKeysByOrg = `-- name: CountActiveAPIKeysByOrg :one
+SELECT COUNT(*) FROM api_keys
+WHERE organization_id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) CountActiveAPIKeysByOrg(ctx context.Context, organizationID string) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveAPIKeysByOrg, organizationID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAPIKey = `-- name: CreateAPIKey :one
 INSERT INTO api_keys (id, organization_id, name, key_prefix, key_hash, scopes)
 VALUES ($1, $2, $3, $4, $5, $6)

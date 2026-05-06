@@ -66,24 +66,12 @@ func (h *Handlers) CreateAPIKeyHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determine target org: platform owners may specify an org_id; others use their own.
-	targetOrgID := sess.OrgID
-	if body.OrgId != nil && *body.OrgId != "" {
-		// Verify the session org is a platform org before allowing cross-org key creation.
-		org, err := h.orgs.GetByID(r.Context(), sess.OrgID)
-		if err != nil || org.Type != db.OrgTypePlatform {
-			writeJSONError(w, r, http.StatusForbidden, "forbidden", "Only platform owners can create keys for other organizations")
-			return
-		}
-		targetOrgID = *body.OrgId
-	}
-
 	scopes := []string{}
 	if body.Scopes != nil {
 		scopes = *body.Scopes
 	}
 
-	key, rawKey, err := h.apiKeys.Create(r.Context(), targetOrgID, body.Name, scopes)
+	key, rawKey, err := h.apiKeys.Create(r.Context(), sess.OrgID, body.Name, scopes)
 	if err != nil {
 		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "could not create key")
 		return

@@ -17,11 +17,14 @@ func NewUserRepo(pool *pgxpool.Pool) *UserRepo {
 	return &UserRepo{q: db.New(pool)}
 }
 
-func (r *UserRepo) Create(ctx context.Context, email, passwordHash string) (*db.User, error) {
+func (r *UserRepo) Create(ctx context.Context, email, passwordHash, firstName, lastName, phone string) (*db.User, error) {
 	row, err := r.q.CreateUser(ctx, db.CreateUserParams{
 		ID:           newID(),
 		Email:        email,
 		PasswordHash: passwordHash,
+		FirstName:    firstName,
+		LastName:     lastName,
+		Phone:        phone,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)

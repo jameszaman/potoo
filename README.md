@@ -71,7 +71,9 @@ make web         # Next.js dashboard on :3000
 
 ### First run
 
-Navigate to `http://localhost:3000/setup` to create the platform organization and your owner account. This route is only available once — it returns 410 Gone after setup is complete.
+Navigate to `http://localhost:3000` — you will be redirected to `/setup` automatically. Fill in the organization name, email, and password to create the platform owner account.
+
+`/setup` is only accessible before the platform has been configured. Once setup is complete it is permanently inaccessible and all routes redirect to `/sign-in` instead. The API enforces this server-side as well (`410 Gone` on any repeat call to `POST /v1/setup`).
 
 ---
 

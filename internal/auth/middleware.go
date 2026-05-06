@@ -34,6 +34,17 @@ func Authenticate(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 				return
 			}
 
+			// Check the org is active before doing anything else.
+			org, err := orgs.GetByID(r.Context(), key.OrganizationID)
+			if err != nil {
+				writeErrorResponse(w, r, http.StatusUnauthorized, "invalid_api_key", "API key is invalid or revoked")
+				return
+			}
+			if !org.IsActive {
+				writeErrorResponse(w, r, http.StatusForbidden, "org_inactive", "This organization has been deactivated")
+				return
+			}
+
 			// Resolve default project and production environment for this org.
 			project, err := orgs.GetDefaultProject(r.Context(), key.OrganizationID)
 			if err != nil {

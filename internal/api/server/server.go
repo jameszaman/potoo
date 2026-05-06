@@ -43,8 +43,11 @@ func New(pool *pgxpool.Pool, q *queue.Client, allowedOrigin string) http.Handler
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+	r.Get("/v1/platform/status", h.GetPlatformStatusHTTP)
 	r.Post("/v1/setup", h.SetupHTTP)
 	r.Post("/v1/auth/register", h.RegisterHTTP)
+	r.Post("/v1/auth/accept-invite", h.AcceptInviteHTTP)
+	r.Get("/v1/invite/{token}", h.GetInviteHTTP)
 	r.Post("/v1/auth/login", h.LoginHTTP)
 	r.Post("/v1/auth/logout", h.LogoutHTTP)
 	r.Post("/v1/auth/refresh", h.RefreshSessionHTTP)
@@ -67,6 +70,9 @@ func New(pool *pgxpool.Pool, q *queue.Client, allowedOrigin string) http.Handler
 		r.Use(auth.RequirePlatformOwner(pool))
 		r.Get("/v1/platform/orgs", h.ListOrgsHTTP)
 		r.Post("/v1/platform/orgs", h.CreateOrgHTTP)
+		r.Patch("/v1/platform/orgs/{orgId}", h.UpdateOrgHTTP)
+		r.Post("/v1/platform/invites", h.CreateInviteHTTP)
+		r.Get("/v1/platform/invites", h.ListInvitesHTTP)
 	})
 
 	// ── Tier 3: API-key authenticated routes (all remaining strict routes) ──

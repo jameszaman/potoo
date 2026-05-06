@@ -29,17 +29,49 @@ async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return res.json();
 }
 
-export async function setup(name: string, email: string, password: string): Promise<AuthUser> {
-  return apiPost<AuthUser>("/v1/setup", { name, email, password });
+export async function getPlatformStatus(): Promise<{ is_configured: boolean }> {
+  const res = await fetch(`${API_BASE}/v1/platform/status`);
+  if (!res.ok) return { is_configured: false };
+  return res.json();
+}
+
+export async function setup(params: {
+  org_name: string;
+  org_website?: string;
+  org_description?: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  email: string;
+  password: string;
+}): Promise<AuthUser> {
+  return apiPost<AuthUser>("/v1/setup", params);
+}
+
+export async function acceptInvite(params: {
+  token: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  email: string;
+  password: string;
+}): Promise<AuthUser> {
+  return apiPost<AuthUser>("/v1/auth/accept-invite", params);
+}
+
+export async function getInvite(token: string): Promise<{ org_name: string; expires_at: string }> {
+  const res = await fetch(`${API_BASE}/v1/invite/${token}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
+  }
+  return res.json();
 }
 
 export async function login(email: string, password: string): Promise<AuthUser> {
   return apiPost<AuthUser>("/v1/auth/login", { email, password });
 }
 
-export async function register(email: string, password: string): Promise<AuthUser> {
-  return apiPost<AuthUser>("/v1/auth/register", { email, password });
-}
 
 export async function logout(): Promise<void> {
   await apiPost<void>("/v1/auth/logout");

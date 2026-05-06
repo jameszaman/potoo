@@ -10,19 +10,29 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, email, password_hash)
-VALUES ($1, $2, $3)
-RETURNING id, email, password_hash, created_at, updated_at
+INSERT INTO users (id, email, password_hash, first_name, last_name, phone)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, email, password_hash, created_at, updated_at, first_name, last_name, phone
 `
 
 type CreateUserParams struct {
 	ID           string `db:"id" json:"id"`
 	Email        string `db:"email" json:"email"`
 	PasswordHash string `db:"password_hash" json:"password_hash"`
+	FirstName    string `db:"first_name" json:"first_name"`
+	LastName     string `db:"last_name" json:"last_name"`
+	Phone        string `db:"phone" json:"phone"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.ID, arg.Email, arg.PasswordHash)
+	row := q.db.QueryRow(ctx, createUser,
+		arg.ID,
+		arg.Email,
+		arg.PasswordHash,
+		arg.FirstName,
+		arg.LastName,
+		arg.Phone,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -30,12 +40,15 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FirstName,
+		&i.LastName,
+		&i.Phone,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, created_at, updated_at FROM users
+SELECT id, email, password_hash, created_at, updated_at, first_name, last_name, phone FROM users
 WHERE email = $1
 LIMIT 1
 `
@@ -49,12 +62,15 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FirstName,
+		&i.LastName,
+		&i.Phone,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, created_at, updated_at FROM users
+SELECT id, email, password_hash, created_at, updated_at, first_name, last_name, phone FROM users
 WHERE id = $1
 LIMIT 1
 `
@@ -68,6 +84,9 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.FirstName,
+		&i.LastName,
+		&i.Phone,
 	)
 	return i, err
 }

@@ -21,7 +21,7 @@ func NewOrgRepo(pool *pgxpool.Pool) *OrgRepo {
 
 // CreateWithDefaults creates an org, a default project, and a production environment
 // in a single transaction. This is the preferred call site for all org creation.
-func (r *OrgRepo) CreateWithDefaults(ctx context.Context, name, slug string, orgType db.OrgType) (*db.Organization, error) {
+func (r *OrgRepo) CreateWithDefaults(ctx context.Context, name, slug string, orgType db.OrgType, website, description *string) (*db.Organization, error) {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -31,10 +31,12 @@ func (r *OrgRepo) CreateWithDefaults(ctx context.Context, name, slug string, org
 	q := db.New(tx)
 
 	org, err := q.CreateOrganization(ctx, db.CreateOrganizationParams{
-		ID:   newID(),
-		Name: name,
-		Slug: slug,
-		Type: orgType,
+		ID:          newID(),
+		Name:        name,
+		Slug:        slug,
+		Type:        orgType,
+		Website:     website,
+		Description: description,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create organization: %w", err)
@@ -134,6 +136,25 @@ func (r *OrgRepo) GetProductionEnvironment(ctx context.Context, projectID string
 	row, err := r.q.GetProductionEnvironment(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("get production environment: %w", err)
+	}
+	return &row, nil
+}
+
+func (r *OrgRepo) SetActive(ctx context.Context, orgID string, active bool) (*db.Organization, error) {
+	row, err := r.q.SetOrgActive(ctx, db.SetOrgActiveParams{
+		ID:       orgID,
+		IsActive: active,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("set org active: %w", err)
+	}
+	return &row, nil
+}
+
+func (r *OrgRepo) GetStats(ctx context.Context, orgID string) (*db.GetOrgStatsRow, error) {
+	row, err := r.q.GetOrgStats(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("get org stats: %w", err)
 	}
 	return &row, nil
 }

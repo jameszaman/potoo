@@ -31,6 +31,8 @@ tags:
     description: Inbound provider webhook endpoints (no auth required)
   - name: auth
     description: User registration and session management
+  - name: setup
+    description: One-time platform bootstrap
 
 components:
   securitySchemes:
@@ -55,7 +57,7 @@ components:
 
     OrgSummary:
       type: object
-      required: [id, name, slug, type, role]
+      required: [id, name, slug, type, role, is_active]
       properties:
         id:
           type: string
@@ -69,15 +71,45 @@ components:
         role:
           type: string
           enum: [owner, member]
+        is_active:
+          type: boolean
+        api_key_count:
+          type: integer
+          description: Number of active (non-revoked) API keys — included in platform org listing
+        call_count:
+          type: integer
+          description: Total notifications sent — included in platform org listing
+
+    UpdateOrgRequest:
+      type: object
+      properties:
+        is_active:
+          type: boolean
 
     SetupRequest:
       type: object
-      required: [name, email, password]
+      required: [org_name, first_name, last_name, email, password]
       properties:
-        name:
+        org_name:
           type: string
           description: Platform organization name
           example: Acme Platform
+        org_website:
+          type: string
+          example: https://acme.com
+        org_description:
+          type: string
+          maxLength: 200
+          example: The platform organization
+        first_name:
+          type: string
+          example: James
+        last_name:
+          type: string
+          example: Zaman
+        phone:
+          type: string
+          example: "+447911123456"
         email:
           type: string
           format: email
@@ -136,9 +168,6 @@ components:
         name:
           type: string
           example: Production key
-        org_id:
-          type: string
-          description: Target org — platform owners only; omit to use the session org
         scopes:
           type: array
           items:
@@ -157,8 +186,50 @@ components:
 
     RegisterRequest:
       type: object
-      required: [email, password]
+      required: [org_name, first_name, last_name, email, password]
       properties:
+        org_name:
+          type: string
+          example: Skyline Labs
+        org_website:
+          type: string
+          example: https://example.com
+        org_description:
+          type: string
+          maxLength: 200
+          example: A short description of what your organization does
+        first_name:
+          type: string
+          example: Morgan
+        last_name:
+          type: string
+          example: Taylor
+        phone:
+          type: string
+          example: "+1 555 000 0000"
+        email:
+          type: string
+          format: email
+          example: you@example.com
+        password:
+          type: string
+          minLength: 8
+
+    InviteAcceptRequest:
+      type: object
+      required: [token, first_name, last_name, email, password]
+      properties:
+        token:
+          type: string
+        first_name:
+          type: string
+          example: James
+        last_name:
+          type: string
+          example: Zaman
+        phone:
+          type: string
+          example: "+447911123456"
         email:
           type: string
           format: email
@@ -166,7 +237,45 @@ components:
         password:
           type: string
           minLength: 8
-          example: supersecret
+
+    CreateInviteRequest:
+      type: object
+      required: [org_id]
+      properties:
+        org_id:
+          type: string
+
+    InviteResponse:
+      type: object
+      required: [id, org_id, token, expires_at, created_at]
+      properties:
+        id:
+          type: string
+        org_id:
+          type: string
+        org_name:
+          type: string
+        token:
+          type: string
+        used_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    InvitePreview:
+      type: object
+      required: [org_name, expires_at]
+      properties:
+        org_name:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
 
     LoginRequest:
       type: object
@@ -569,7 +678,7 @@ paths:
   /v1/auth/register:
     post:
       operationId: register
-      summary: Create a new user account
+      summary: Create a customer organization and owner account together
       tags: [auth]
       security: []
       requestBody:
@@ -580,7 +689,39 @@ paths:
               $ref: "#/components/schemas/RegisterRequest"
       responses:
         "201":
-          description: Account created
+          description: Organization and account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          description: Validation error or platform not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Email or org slug already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/auth/accept-invite:
+    post:
+      operationId: acceptInvite
+      summary: Accept an invite and create a user account
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteAcceptRequest"
+      responses:
+        "201":
+          description: Account created and joined organization
           content:
             application/json:
               schema:
@@ -593,6 +734,44 @@ paths:
                 $ref: "#/components/schemas/Error"
         "409":
           description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "410":
+          description: Invite already used or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/invite/{token}:
+    get:
+      operationId: getInvite
+      summary: Validate an invite token and return org info for the invite page
+      tags: [auth]
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Valid invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitePreview"
+        "404":
+          description: Invite not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "410":
+          description: Invite already used or expired
           content:
             application/json:
               schema:
@@ -673,6 +852,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /v1/platform/status:
+    get:
+      operationId: getPlatformStatus
+      summary: Returns whether the platform has been configured
+      tags: [setup]
+      security: []
+      responses:
+        "200":
+          description: Platform status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [is_configured]
+                properties:
+                  is_configured:
+                    type: boolean
 
   /v1/setup:
     post:
@@ -805,6 +1002,81 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /v1/platform/orgs/{orgId}:
+    patch:
+      operationId: updateOrg
+      summary: Update a customer organization (platform owner only)
+      tags: [platform]
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrgRequest"
+      responses:
+        "200":
+          description: Org updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgSummary"
+        "404":
+          description: Org not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/platform/invites:
+    post:
+      operationId: createInvite
+      summary: Create a single-use invite link for a customer org (platform owner only)
+      tags: [platform]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInviteRequest"
+      responses:
+        "201":
+          description: Invite created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteResponse"
+        "404":
+          description: Org not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      operationId: listInvites
+      summary: List all invites (platform owner only)
+      tags: [platform]
+      security: []
+      responses:
+        "200":
+          description: Invite list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InviteResponse"
 
   /v1/api-keys:
     get:

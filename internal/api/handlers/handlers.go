@@ -30,6 +30,7 @@ type Handlers struct {
 	orgs          *repo.OrgRepo
 	members       *repo.OrgMemberRepo
 	apiKeys       *repo.APIKeyRepo
+	invites       *repo.OrgInviteRepo
 	queue         *queue.Client
 }
 
@@ -45,6 +46,7 @@ func New(pool *pgxpool.Pool, q *queue.Client) *Handlers {
 		orgs:          repo.NewOrgRepo(pool),
 		members:       repo.NewOrgMemberRepo(pool),
 		apiKeys:       repo.NewAPIKeyRepo(pool),
+		invites:       repo.NewOrgInviteRepo(pool),
 		queue:         q,
 	}
 }

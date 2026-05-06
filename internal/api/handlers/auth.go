@@ -17,43 +17,26 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
+	db "github.com/notifylayer/notifylayer/internal/db/sqlc"
 	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
 	"github.com/notifylayer/notifylayer/internal/db/repo"
 	"github.com/notifylayer/notifylayer/internal/jwtutil"
 )
 
-// --- Register (via strict handler — no cookie needed) ---
+// --- Register (creates a customer org + owner together) ---
 
-func (h *Handlers) Register(ctx context.Context, req api.RegisterRequestObject) (api.RegisterResponseObject, error) {
-	body := req.Body
-	email := strings.ToLower(string(body.Email))
-
-	if len(body.Password) < 8 {
-		return api.Register400JSONResponse(errBody(ctx, "validation_failed", "password must be at least 8 characters")), nil
-	}
-
-	hash, err := hashPassword(body.Password)
-	if err != nil {
-		return nil, err
-	}
-
-	user, err := h.users.Create(ctx, email, hash)
-	if err != nil {
-		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
-			return api.Register409JSONResponse(errBody(ctx, "conflict", "An account with that email already exists")), nil
-		}
-		return nil, err
-	}
-
-	return api.Register201JSONResponse(api.AuthUser{
-		Id:        user.ID,
-		Email:     openapi_types.Email(email),
-		CreatedAt: user.CreatedAt.Time,
-	}), nil
+// Register satisfies the strict interface — real work is done in RegisterHTTP.
+func (h *Handlers) Register(_ context.Context, _ api.RegisterRequestObject) (api.RegisterResponseObject, error) {
+	return nil, nil
 }
 
 func (h *Handlers) RegisterHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	if exists, err := h.orgs.PlatformOrgExists(ctx); err != nil || !exists {
+		writeJSONError(w, r, http.StatusServiceUnavailable, "not_configured", "Platform not set up. Visit /setup to create the platform organization first.")
+		return
+	}
 
 	var body api.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -61,26 +44,160 @@ func (h *Handlers) RegisterHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.Register(ctx, api.RegisterRequestObject{Body: &body})
-	if err != nil {
-		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", err.Error())
+	if body.FirstName == "" || body.LastName == "" {
+		writeJSONError(w, r, http.StatusBadRequest, "validation_failed", "first_name and last_name are required")
+		return
+	}
+	if len(body.Password) < 8 {
+		writeJSONError(w, r, http.StatusBadRequest, "validation_failed", "password must be at least 8 characters")
+		return
+	}
+	if body.OrgDescription != nil && len(*body.OrgDescription) > 200 {
+		writeJSONError(w, r, http.StatusBadRequest, "validation_failed", "org_description must be 200 characters or fewer")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	switch v := resp.(type) {
-	case api.Register201JSONResponse:
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(v)
-	case api.Register400JSONResponse:
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(v)
-	case api.Register409JSONResponse:
-		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(v)
-	default:
-		w.WriteHeader(http.StatusInternalServerError)
+	email := strings.ToLower(string(body.Email))
+	hash, err := hashPassword(body.Password)
+	if err != nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "unexpected error")
+		return
 	}
+
+	phone := ""
+	if body.Phone != nil {
+		phone = *body.Phone
+	}
+
+	user, err := h.users.Create(ctx, email, hash, body.FirstName, body.LastName, phone)
+	if err != nil {
+		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
+			writeJSONError(w, r, http.StatusConflict, "conflict", "An account with that email already exists")
+			return
+		}
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "unexpected error")
+		return
+	}
+
+	slug := strings.ToLower(strings.ReplaceAll(body.OrgName, " ", "-"))
+	org, err := h.orgs.CreateWithDefaults(ctx, body.OrgName, slug, db.OrgTypeCustomer, body.OrgWebsite, body.OrgDescription)
+	if err != nil {
+		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
+			writeJSONError(w, r, http.StatusConflict, "conflict", "An organization with that name already exists")
+			return
+		}
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "could not create organization")
+		return
+	}
+
+	if _, err := h.members.Create(ctx, org.ID, user.ID, db.OrgRoleOwner); err != nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "could not create membership")
+		return
+	}
+
+	accessToken, refreshToken, err := h.createSession(ctx, user.ID, org.ID)
+	if err != nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "could not create session")
+		return
+	}
+
+	setAuthCookies(w, accessToken, refreshToken, time.Now().Add(jwtutil.RefreshTTL))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(api.AuthUser{
+		Id:        user.ID,
+		Email:     openapi_types.Email(email),
+		CreatedAt: user.CreatedAt.Time,
+	})
+}
+
+// --- Accept invite (plain HTTP handler — creates user, joins org, sets cookies) ---
+
+// AcceptInvite satisfies the strict interface — real work is done in AcceptInviteHTTP.
+func (h *Handlers) AcceptInvite(_ context.Context, _ api.AcceptInviteRequestObject) (api.AcceptInviteResponseObject, error) {
+	return nil, nil
+}
+
+func (h *Handlers) AcceptInviteHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var body api.InviteAcceptRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSONError(w, r, http.StatusBadRequest, "invalid_request", "invalid JSON")
+		return
+	}
+
+	if body.FirstName == "" || body.LastName == "" {
+		writeJSONError(w, r, http.StatusBadRequest, "validation_failed", "first_name and last_name are required")
+		return
+	}
+	if len(body.Password) < 8 {
+		writeJSONError(w, r, http.StatusBadRequest, "validation_failed", "password must be at least 8 characters")
+		return
+	}
+
+	invite, err := h.invites.GetByToken(ctx, body.Token)
+	if err != nil {
+		writeJSONError(w, r, http.StatusNotFound, "not_found", "Invite not found")
+		return
+	}
+	if invite.UsedAt.Valid {
+		writeJSONError(w, r, http.StatusGone, "invite_used", "This invite has already been used")
+		return
+	}
+	if invite.ExpiresAt.Time.Before(time.Now()) {
+		writeJSONError(w, r, http.StatusGone, "invite_expired", "This invite has expired")
+		return
+	}
+
+	email := strings.ToLower(string(body.Email))
+	hash, err := hashPassword(body.Password)
+	if err != nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "unexpected error")
+		return
+	}
+
+	phone := ""
+	if body.Phone != nil {
+		phone = *body.Phone
+	}
+
+	user, err := h.users.Create(ctx, email, hash, body.FirstName, body.LastName, phone)
+	if err != nil {
+		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
+			writeJSONError(w, r, http.StatusConflict, "conflict", "An account with that email already exists")
+			return
+		}
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "unexpected error")
+		return
+	}
+
+	if _, err := h.members.Create(ctx, invite.OrgID, user.ID, db.OrgRoleMember); err != nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "could not join organization")
+		return
+	}
+
+	if err := h.invites.MarkUsed(ctx, invite.ID); err != nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "could not finalize invite")
+		return
+	}
+
+	accessToken, refreshToken, err := h.createSession(ctx, user.ID, invite.OrgID)
+	if err != nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "could not create session")
+		return
+	}
+
+	setAuthCookies(w, accessToken, refreshToken, time.Now().Add(jwtutil.RefreshTTL))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(api.AuthUser{
+		Id:        user.ID,
+		Email:     openapi_types.Email(email),
+		CreatedAt: user.CreatedAt.Time,
+	})
 }
 
 // --- Login (plain HTTP handler — needs to set cookies) ---
@@ -92,6 +209,11 @@ func (h *Handlers) Login(_ context.Context, _ api.LoginRequestObject) (api.Login
 
 func (h *Handlers) LoginHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	if exists, err := h.orgs.PlatformOrgExists(ctx); err != nil || !exists {
+		writeJSONError(w, r, http.StatusServiceUnavailable, "not_configured", "Platform not set up. Visit /setup to create the platform organization first.")
+		return
+	}
 
 	var body api.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {

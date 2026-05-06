@@ -20,6 +20,10 @@ FROM api_keys
 WHERE organization_id = $1
 ORDER BY created_at DESC;
 
+-- name: CountActiveAPIKeysByOrg :one
+SELECT COUNT(*) FROM api_keys
+WHERE organization_id = $1 AND revoked_at IS NULL;
+
 -- name: RevokeAPIKey :exec
 UPDATE api_keys
 SET revoked_at = NOW()

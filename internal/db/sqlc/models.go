@@ -479,13 +479,26 @@ type Notification struct {
 	UpdatedAt      pgtype.Timestamptz  `db:"updated_at" json:"updated_at"`
 }
 
-type Organization struct {
+type OrgInvite struct {
 	ID        string             `db:"id" json:"id"`
-	Name      string             `db:"name" json:"name"`
-	Slug      string             `db:"slug" json:"slug"`
+	OrgID     string             `db:"org_id" json:"org_id"`
+	CreatedBy string             `db:"created_by" json:"created_by"`
+	Token     string             `db:"token" json:"token"`
+	UsedAt    pgtype.Timestamptz `db:"used_at" json:"used_at"`
+	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
-	Type      OrgType            `db:"type" json:"type"`
+}
+
+type Organization struct {
+	ID          string             `db:"id" json:"id"`
+	Name        string             `db:"name" json:"name"`
+	Slug        string             `db:"slug" json:"slug"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	Type        OrgType            `db:"type" json:"type"`
+	IsActive    bool               `db:"is_active" json:"is_active"`
+	Website     *string            `db:"website" json:"website"`
+	Description *string            `db:"description" json:"description"`
 }
 
 type OrganizationMember struct {
@@ -563,4 +576,7 @@ type User struct {
 	PasswordHash string             `db:"password_hash" json:"password_hash"`
 	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	FirstName    string             `db:"first_name" json:"first_name"`
+	LastName     string             `db:"last_name" json:"last_name"`
+	Phone        string             `db:"phone" json:"phone"`
 }

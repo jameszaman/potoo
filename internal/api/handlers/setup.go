@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/notifylayer/notifylayer/internal/auth"
@@ -14,6 +15,23 @@ import (
 	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
 	"github.com/notifylayer/notifylayer/internal/jwtutil"
 )
+
+// GetPlatformStatusHTTP returns whether the platform has been bootstrapped.
+func (h *Handlers) GetPlatformStatusHTTP(w http.ResponseWriter, r *http.Request) {
+	exists, err := h.orgs.PlatformOrgExists(r.Context())
+	if err != nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "unexpected error")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]any{"is_configured": exists})
+}
+
+// GetPlatformStatus satisfies the strict interface — real work is done in GetPlatformStatusHTTP.
+func (h *Handlers) GetPlatformStatus(_ context.Context, _ api.GetPlatformStatusRequestObject) (api.GetPlatformStatusResponseObject, error) {
+	return nil, nil
+}
 
 // SetupHTTP is the plain HTTP handler for one-time platform bootstrap.
 func (h *Handlers) SetupHTTP(w http.ResponseWriter, r *http.Request) {
@@ -35,8 +53,16 @@ func (h *Handlers) SetupHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if body.FirstName == "" || body.LastName == "" {
+		writeJSONError(w, r, http.StatusBadRequest, "validation_failed", "first_name and last_name are required")
+		return
+	}
 	if len(body.Password) < 8 {
 		writeJSONError(w, r, http.StatusBadRequest, "validation_failed", "password must be at least 8 characters")
+		return
+	}
+	if body.OrgDescription != nil && len(*body.OrgDescription) > 200 {
+		writeJSONError(w, r, http.StatusBadRequest, "validation_failed", "org_description must be 200 characters or fewer")
 		return
 	}
 
@@ -47,7 +73,12 @@ func (h *Handlers) SetupHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.users.Create(ctx, email, hash)
+	phone := ""
+	if body.Phone != nil {
+		phone = *body.Phone
+	}
+
+	user, err := h.users.Create(ctx, email, hash, body.FirstName, body.LastName, phone)
 	if err != nil {
 		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
 			writeJSONError(w, r, http.StatusConflict, "conflict", "An account with that email already exists")
@@ -57,8 +88,8 @@ func (h *Handlers) SetupHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slug := strings.ToLower(strings.ReplaceAll(body.Name, " ", "-"))
-	org, err := h.orgs.CreateWithDefaults(ctx, body.Name, slug, db.OrgTypePlatform)
+	slug := strings.ToLower(strings.ReplaceAll(body.OrgName, " ", "-"))
+	org, err := h.orgs.CreateWithDefaults(ctx, body.OrgName, slug, db.OrgTypePlatform, body.OrgWebsite, body.OrgDescription)
 	if err != nil {
 		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "could not create org")
 		return
@@ -91,6 +122,11 @@ func (h *Handlers) Setup(_ context.Context, _ api.SetupRequestObject) (api.Setup
 	return nil, nil
 }
 
+// UpdateOrg satisfies the strict interface — real work is done in UpdateOrgHTTP.
+func (h *Handlers) UpdateOrg(_ context.Context, _ api.UpdateOrgRequestObject) (api.UpdateOrgResponseObject, error) {
+	return nil, nil
+}
+
 // --- Org management (platform owner only, enforced by middleware) ---
 
 func (h *Handlers) ListOrgs(ctx context.Context, _ api.ListOrgsRequestObject) (api.ListOrgsResponseObject, error) {
@@ -106,7 +142,7 @@ func (h *Handlers) ListOrgs(ctx context.Context, _ api.ListOrgsRequestObject) (a
 }
 
 func (h *Handlers) CreateOrg(ctx context.Context, req api.CreateOrgRequestObject) (api.CreateOrgResponseObject, error) {
-	org, err := h.orgs.CreateWithDefaults(ctx, req.Body.Name, req.Body.Slug, db.OrgTypeCustomer)
+	org, err := h.orgs.CreateWithDefaults(ctx, req.Body.Name, req.Body.Slug, db.OrgTypeCustomer, nil, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
 			return api.CreateOrg409JSONResponse(errBody(ctx, "conflict", "An organization with that slug already exists")), nil
@@ -235,13 +271,45 @@ func (h *Handlers) ListOrgsHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "unexpected error")
 		return
 	}
-	out := make([]api.OrgSummary, len(rows))
-	for i, row := range rows {
-		out[i] = dbOrgToAPI(row, db.OrgRoleOwner)
+	out := make([]api.OrgSummary, 0, len(rows))
+	for _, row := range rows {
+		summary := dbOrgToAPI(row, db.OrgRoleOwner)
+		if stats, err := h.orgs.GetStats(r.Context(), row.ID); err == nil {
+			keyCount := int(stats.ApiKeyCount)
+			callCount := int(stats.CallCount)
+			summary.ApiKeyCount = &keyCount
+			summary.CallCount = &callCount
+		}
+		out = append(out, summary)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]any{"data": out})
+}
+
+func (h *Handlers) UpdateOrgHTTP(w http.ResponseWriter, r *http.Request) {
+	orgID := chi.URLParam(r, "orgId")
+
+	var body api.UpdateOrgRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSONError(w, r, http.StatusBadRequest, "invalid_request", "invalid JSON")
+		return
+	}
+
+	if body.IsActive == nil {
+		writeJSONError(w, r, http.StatusBadRequest, "validation_failed", "no fields to update")
+		return
+	}
+
+	org, err := h.orgs.SetActive(r.Context(), orgID, *body.IsActive)
+	if err != nil {
+		writeJSONError(w, r, http.StatusNotFound, "not_found", "Organization not found")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(dbOrgToAPI(*org, db.OrgRoleOwner))
 }
 
 func (h *Handlers) CreateOrgHTTP(w http.ResponseWriter, r *http.Request) {
@@ -251,7 +319,7 @@ func (h *Handlers) CreateOrgHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	org, err := h.orgs.CreateWithDefaults(r.Context(), body.Name, body.Slug, db.OrgTypeCustomer)
+	org, err := h.orgs.CreateWithDefaults(r.Context(), body.Name, body.Slug, db.OrgTypeCustomer, nil, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
 			writeJSONError(w, r, http.StatusConflict, "conflict", "An organization with that slug already exists")
@@ -270,10 +338,11 @@ func (h *Handlers) CreateOrgHTTP(w http.ResponseWriter, r *http.Request) {
 
 func dbOrgToAPI(org db.Organization, role db.OrgRole) api.OrgSummary {
 	return api.OrgSummary{
-		Id:   org.ID,
-		Name: org.Name,
-		Slug: org.Slug,
-		Type: api.OrgSummaryType(org.Type),
-		Role: api.OrgSummaryRole(role),
+		Id:       org.ID,
+		Name:     org.Name,
+		Slug:     org.Slug,
+		Type:     api.OrgSummaryType(org.Type),
+		Role:     api.OrgSummaryRole(role),
+		IsActive: org.IsActive,
 	}
 }

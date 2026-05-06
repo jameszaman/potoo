@@ -23,6 +23,8 @@ tags:
     description: Send and inspect notifications
   - name: deliveries
     description: Delivery records and event timelines
+  - name: templates
+    description: Template management and rendering
 
 components:
   securitySchemes:
@@ -214,6 +216,131 @@ components:
           type: string
           format: date-time
 
+    TemplateChannel:
+      type: string
+      enum: [email, sms, push, whatsapp]
+
+    TemplateVersionStatus:
+      type: string
+      enum: [draft, active, archived]
+
+    Template:
+      type: object
+      required: [id, key, name, channel, created_at]
+      properties:
+        id:
+          type: string
+          example: tpl_01HX1234
+        key:
+          type: string
+          example: welcome_email
+        name:
+          type: string
+          example: Welcome Email
+        channel:
+          $ref: "#/components/schemas/TemplateChannel"
+        active_version:
+          type: integer
+          example: 2
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TemplateVersion:
+      type: object
+      required: [id, template_id, version_number, status, created_at]
+      properties:
+        id:
+          type: string
+          example: tv_01HX1234
+        template_id:
+          type: string
+          example: tpl_01HX1234
+        version_number:
+          type: integer
+          example: 1
+        subject:
+          type: string
+          example: "Welcome to {{workspace_name}}"
+        html_body:
+          type: string
+          example: "<p>Hi {{first_name}}</p>"
+        text_body:
+          type: string
+        sms_body:
+          type: string
+        variables_schema:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            first_name: string
+            workspace_name: string
+        status:
+          $ref: "#/components/schemas/TemplateVersionStatus"
+        created_at:
+          type: string
+          format: date-time
+
+    CreateTemplateRequest:
+      type: object
+      required: [key, name, channel]
+      properties:
+        key:
+          type: string
+          example: welcome_email
+        name:
+          type: string
+          example: Welcome Email
+        channel:
+          $ref: "#/components/schemas/TemplateChannel"
+
+    CreateTemplateVersionRequest:
+      type: object
+      required: [subject, html_body]
+      properties:
+        subject:
+          type: string
+          example: "Welcome to {{workspace_name}}"
+        html_body:
+          type: string
+          example: "<p>Hi {{first_name}}, welcome to {{workspace_name}}!</p>"
+        text_body:
+          type: string
+        sms_body:
+          type: string
+        variables_schema:
+          type: object
+          additionalProperties:
+            type: string
+
+    RenderTemplateRequest:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+          example:
+            first_name: James
+            workspace_name: Acme
+
+    RenderTemplateResponse:
+      type: object
+      required: [subject, html_body]
+      properties:
+        subject:
+          type: string
+        html_body:
+          type: string
+        text_body:
+          type: string
+        sms_body:
+          type: string
+
     DeliveryEvent:
       type: object
       required: [id, delivery_id, event_type, occurred_at, created_at]
@@ -371,6 +498,229 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           description: Delivery not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/templates:
+    get:
+      operationId: listTemplates
+      summary: List templates
+      tags: [templates]
+      responses:
+        "200":
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Template"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createTemplate
+      summary: Create a template
+      tags: [templates]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTemplateRequest"
+      responses:
+        "201":
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Template key already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/templates/{template_key}:
+    get:
+      operationId: getTemplate
+      summary: Get a template
+      tags: [templates]
+      parameters:
+        - name: template_key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: welcome_email
+      responses:
+        "200":
+          description: Template found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/templates/{template_key}/versions:
+    post:
+      operationId: createTemplateVersion
+      summary: Create a template version
+      tags: [templates]
+      parameters:
+        - name: template_key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: welcome_email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTemplateVersionRequest"
+      responses:
+        "201":
+          description: Version created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateVersion"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/templates/{template_key}/activate:
+    post:
+      operationId: activateTemplateVersion
+      summary: Activate a template version
+      tags: [templates]
+      parameters:
+        - name: template_key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: welcome_email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version_number]
+              properties:
+                version_number:
+                  type: integer
+                  example: 2
+      responses:
+        "200":
+          description: Version activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Template"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Template or version not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/templates/{template_key}/render:
+    post:
+      operationId: renderTemplate
+      summary: Render a template with test data
+      tags: [templates]
+      parameters:
+        - name: template_key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: welcome_email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenderTemplateRequest"
+      responses:
+        "200":
+          description: Rendered output
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RenderTemplateResponse"
+        "400":
+          description: Missing required variables
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Template not found
           content:
             application/json:
               schema:

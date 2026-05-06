@@ -97,15 +97,15 @@ Customer apps call `POST /v1/notifications`. The Go API authenticates the API ke
 
 **Phase 1 complete.** `GET /v1/health` returns 200 and `GET /docs` loads Swagger UI.
 
-**Phase 3 complete.** Auth middleware hashes the Bearer token with SHA-256, looks it up in `api_keys`, and stores the resolved tenant (org/project/env) in request context. `/v1/health` is public; all other routes require a valid key.
+**Phases 3 and 4 complete.** Auth middleware hashes the Bearer token with SHA-256, looks it up in `api_keys`, and stores the resolved tenant (org/project/env) in request context. `/v1/health` is public; all other routes require a valid key.
 
-**Next: Phase 4 — Templates.**
+**Next: Phase 5 — Email provider adapters.**
 
 Tasks:
-1. Add `templates` and `template_versions` migrations.
-2. Add sqlc queries and regenerate.
-3. Template CRUD service and handlers.
-4. Minimal `{{variable}}` renderer.
-5. Variable schema validation.
+1. Define `EmailProvider` interface in `internal/providers/`.
+2. Add `provider_connections` migration and sqlc queries.
+3. Implement Resend adapter (send + webhook verification).
+4. Implement SendGrid adapter (send + webhook verification).
+5. Provider connection CRUD endpoints in OpenAPI + handlers.
 
-Done when a template can be created, a version activated, and rendered with test data via the API.
+Done when a test email sends through Resend or SendGrid via the same internal interface.

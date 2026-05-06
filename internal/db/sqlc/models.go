@@ -197,6 +197,49 @@ func (ns NullNotificationStatus) Value() (driver.Value, error) {
 	return string(ns.NotificationStatus), nil
 }
 
+type TemplateVersionStatus string
+
+const (
+	TemplateVersionStatusDraft    TemplateVersionStatus = "draft"
+	TemplateVersionStatusActive   TemplateVersionStatus = "active"
+	TemplateVersionStatusArchived TemplateVersionStatus = "archived"
+)
+
+func (e *TemplateVersionStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TemplateVersionStatus(s)
+	case string:
+		*e = TemplateVersionStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TemplateVersionStatus: %T", src)
+	}
+	return nil
+}
+
+type NullTemplateVersionStatus struct {
+	TemplateVersionStatus TemplateVersionStatus `json:"template_version_status"`
+	Valid                 bool                  `json:"valid"` // Valid is true if TemplateVersionStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTemplateVersionStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.TemplateVersionStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TemplateVersionStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTemplateVersionStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TemplateVersionStatus), nil
+}
+
 type ApiKey struct {
 	ID             string             `db:"id" json:"id"`
 	OrganizationID string             `db:"organization_id" json:"organization_id"`
@@ -281,4 +324,29 @@ type Project struct {
 	Slug           string             `db:"slug" json:"slug"`
 	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type Template struct {
+	ID             string              `db:"id" json:"id"`
+	OrganizationID string              `db:"organization_id" json:"organization_id"`
+	ProjectID      string              `db:"project_id" json:"project_id"`
+	Key            string              `db:"key" json:"key"`
+	Name           string              `db:"name" json:"name"`
+	Channel        NotificationChannel `db:"channel" json:"channel"`
+	ActiveVersion  *int32              `db:"active_version" json:"active_version"`
+	CreatedAt      pgtype.Timestamptz  `db:"created_at" json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz  `db:"updated_at" json:"updated_at"`
+}
+
+type TemplateVersion struct {
+	ID              string                `db:"id" json:"id"`
+	TemplateID      string                `db:"template_id" json:"template_id"`
+	VersionNumber   int32                 `db:"version_number" json:"version_number"`
+	Subject         *string               `db:"subject" json:"subject"`
+	HtmlBody        *string               `db:"html_body" json:"html_body"`
+	TextBody        *string               `db:"text_body" json:"text_body"`
+	SmsBody         *string               `db:"sms_body" json:"sms_body"`
+	VariablesSchema json.RawMessage       `db:"variables_schema" json:"variables_schema"`
+	Status          TemplateVersionStatus `db:"status" json:"status"`
+	CreatedAt       pgtype.Timestamptz    `db:"created_at" json:"created_at"`
 }

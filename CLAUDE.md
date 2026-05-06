@@ -67,17 +67,23 @@ make test-integration  # integration tests
 ```
 api/openapi.yaml              API contract — edit this first
 api/oapi-codegen.yaml         Code generation config
+sqlc.yaml                     sqlc config
 internal/gen/openapi/         Generated Go types and server interface (do not edit)
-internal/http/handlers/       HTTP handlers (thin — business logic goes in services)
-internal/http/middleware/     Request ID, logging, recovery middleware
-internal/http/server/         chi router setup
+internal/api/handlers/        HTTP handlers (thin — business logic goes in services)
+internal/api/middleware/      Request ID, logging, recovery middleware
+internal/api/server/          chi router setup
+internal/db/migrations/       goose migration files
+internal/db/queries/          sqlc input SQL
+internal/db/sqlc/             Generated database code (do not edit)
+internal/db/repo/             Repository layer wrapping sqlc queries
+internal/db/db.go             pgxpool connection helper
 apps/web/                     Next.js dashboard
 cmd/api/main.go               API server entry point
 cmd/worker/main.go            Worker entry point
-cmd/migrate/main.go           Migration runner entry point
+cmd/migrate/main.go           Migration runner
 ```
 
-Packages such as `internal/db/`, `internal/providers/`, `internal/notifications/` etc. are created when the corresponding phase begins — not before.
+Packages such as `internal/providers/`, `internal/notifications/` etc. are created when the corresponding phase begins — not before.
 
 ---
 
@@ -91,12 +97,14 @@ Customer apps call `POST /v1/notifications`. The Go API authenticates the API ke
 
 **Phase 1 complete.** `GET /v1/health` returns 200 and `GET /docs` loads Swagger UI.
 
-**Next: Phase 2 — Database foundation.**
+**Phase 2 complete.** Migrations, sqlc config, generated queries, and repository layer are in place.
+
+**Next: Phase 3 — Authentication and tenant isolation.**
 
 Tasks:
-1. Add goose migrations for all core entities.
-2. Configure sqlc and write initial queries.
-3. Implement a repository layer.
-4. Add a test helper and seed script.
+1. API key generation — hash with bcrypt, store prefix + hash, never raw key.
+2. Auth middleware — extract Bearer token, hash it, look up `api_keys`, resolve org/project/environment into request context.
+3. Clerk webhook handler — `POST /v1/webhooks/clerk` — bootstrap org + project records on `user.created`.
+4. Reject unauthenticated requests with `401`. Reject cross-tenant access with `404`.
 
-Done when `make migrate && sqlc generate && go test ./internal/db/...` pass.
+Done when authenticated requests carry tenant context and unauthenticated/cross-tenant requests fail.

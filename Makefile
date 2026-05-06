@@ -2,7 +2,12 @@
 
 setup:
 	go mod download
+	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+	go install github.com/pressly/goose/v3/cmd/goose@latest
+	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+	go install golang.org/x/vuln/cmd/govulncheck@latest
 	cd apps/web && pnpm install
+	pre-commit install
 
 hooks:
 	pre-commit install
@@ -32,8 +37,8 @@ migrate:
 	go run ./cmd/migrate up
 
 generate:
-	~/go/bin/oapi-codegen --config api/oapi-codegen.yaml api/openapi.yaml
-	sqlc generate
+	$(shell go env GOPATH)/bin/oapi-codegen --config api/oapi-codegen.yaml api/openapi.yaml
+	$(shell go env GOPATH)/bin/sqlc generate
 
 lint:
 	golangci-lint run ./...

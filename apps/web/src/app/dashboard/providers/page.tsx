@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { ProviderConnection } from "@/lib/types";
 import { Plus, Trash2 } from "lucide-react";
+import NoApiKey, { isApiKeyError } from "@/components/NoApiKey";
 
 export default function ProvidersPage() {
   const [connections, setConnections] = useState<ProviderConnection[]>([]);
@@ -81,9 +82,9 @@ export default function ProvidersPage() {
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+      {error && (isApiKeyError(error) ? <NoApiKey /> : <p className="text-sm text-red-600 mb-4">{error}</p>)}
 
-      {showForm && (
+      {!error && showForm && (
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
           <h2 className="text-sm font-semibold mb-4">New provider connection</h2>
           <div className="space-y-3">

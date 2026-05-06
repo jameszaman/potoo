@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { Delivery, DeliveryEvent } from "@/lib/types";
 import clsx from "clsx";
+import NoApiKey, { isApiKeyError } from "@/components/NoApiKey";
 
 const STATUS_COLORS: Record<string, string> = {
   queued: "bg-gray-100 text-gray-600",
@@ -31,7 +32,7 @@ function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
       .catch((e) => setError(String(e)));
   }, [deliveryId]);
 
-  if (error) return <p className="text-sm text-red-600">{error}</p>;
+  if (error) return isApiKeyError(error) ? <NoApiKey /> : <p className="text-sm text-red-600">{error}</p>;
   if (!delivery) return <p className="text-sm text-gray-400">Loading…</p>;
 
   return (

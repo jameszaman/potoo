@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { Template } from "@/lib/types";
 import { Plus, ChevronDown, ChevronUp } from "lucide-react";
+import NoApiKey, { isApiKeyError } from "@/components/NoApiKey";
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -82,7 +83,7 @@ export default function TemplatesPage() {
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+      {error && (isApiKeyError(error) ? <NoApiKey /> : <p className="text-sm text-red-600 mb-4">{error}</p>)}
 
       {showNew && (
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { CheckCircle } from "lucide-react";
+import NoApiKey, { isApiKeyError } from "@/components/NoApiKey";
 
 export default function SendPage() {
   const [form, setForm] = useState({ template_key: "", recipient_email: "", data: "" });
@@ -39,7 +40,7 @@ export default function SendPage() {
       <h1 className="text-xl font-semibold mb-0.5">Send</h1>
       <p className="text-sm text-gray-500 mb-6">Send a test notification.</p>
 
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+      {error && (isApiKeyError(error) ? <NoApiKey /> : <p className="text-sm text-red-600 mb-4">{error}</p>)}
 
       {result ? (
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">

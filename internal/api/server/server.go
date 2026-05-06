@@ -75,9 +75,9 @@ func New(pool *pgxpool.Pool, q *queue.Client, allowedOrigin string) http.Handler
 		r.Get("/v1/platform/invites", h.ListInvitesHTTP)
 	})
 
-	// ── Tier 3: API-key authenticated routes (all remaining strict routes) ──
+	// ── Tier 3: API key or session cookie — all remaining strict routes ──
 	apiRouter := chi.NewRouter()
-	apiRouter.Use(auth.Authenticate(pool))
+	apiRouter.Use(auth.AuthenticateEither(pool))
 	api.HandlerWithOptions(api.NewStrictHandler(h, nil), api.ChiServerOptions{
 		BaseRouter: apiRouter,
 	})

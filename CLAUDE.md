@@ -99,13 +99,14 @@ Customer apps call `POST /v1/notifications`. The Go API authenticates the API ke
 
 **Phases 3 and 4 complete.** Auth middleware hashes the Bearer token with SHA-256, looks it up in `api_keys`, and stores the resolved tenant (org/project/env) in request context. `/v1/health` is public; all other routes require a valid key.
 
-**Next: Phase 5 — Email provider adapters.**
+**Phase 5 complete.** `EmailProvider` interface, Resend + SendGrid adapters, `provider_connections` table, CRUD endpoints.
+
+**Next: Phase 6 — Notification send pipeline.**
 
 Tasks:
-1. Define `EmailProvider` interface in `internal/providers/`.
-2. Add `provider_connections` migration and sqlc queries.
-3. Implement Resend adapter (send + webhook verification).
-4. Implement SendGrid adapter (send + webhook verification).
-5. Provider connection CRUD endpoints in OpenAPI + handlers.
+1. Wire `POST /v1/notifications` — create notification + delivery records, enqueue job.
+2. Add Redis + Asynq worker.
+3. Worker: resolve provider, render template, send via adapter, update delivery status.
+4. Delivery state machine transitions.
 
-Done when a test email sends through Resend or SendGrid via the same internal interface.
+Done when `POST /v1/notifications` returns queued and the worker sends a real email.

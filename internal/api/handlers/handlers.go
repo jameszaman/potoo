@@ -19,12 +19,14 @@ import (
 )
 
 type Handlers struct {
-	templates *repo.TemplateRepo
+	templates   *repo.TemplateRepo
+	providers   *repo.ProviderConnectionRepo
 }
 
 func New(pool *pgxpool.Pool) *Handlers {
 	return &Handlers{
 		templates: repo.NewTemplateRepo(pool),
+		providers: repo.NewProviderConnectionRepo(pool),
 	}
 }
 
@@ -227,6 +229,82 @@ func (h *Handlers) RenderTemplate(ctx context.Context, req api.RenderTemplateReq
 	return api.RenderTemplate200JSONResponse(resp), nil
 }
 
+// --- Provider connections ---
+
+func (h *Handlers) ListProviderConnections(ctx context.Context, _ api.ListProviderConnectionsRequestObject) (api.ListProviderConnectionsResponseObject, error) {
+	tenant, ok := auth.TenantFromContext(ctx)
+	if !ok {
+		return api.ListProviderConnections200JSONResponse{Data: []api.ProviderConnection{}}, nil
+	}
+	rows, err := h.providers.List(ctx, tenant.OrganizationID, tenant.ProjectID, tenant.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]api.ProviderConnection, len(rows))
+	for i, r := range rows {
+		out[i] = dbProviderToAPI(r)
+	}
+	return api.ListProviderConnections200JSONResponse{Data: out}, nil
+}
+
+func (h *Handlers) CreateProviderConnection(ctx context.Context, req api.CreateProviderConnectionRequestObject) (api.CreateProviderConnectionResponseObject, error) {
+	tenant, ok := auth.TenantFromContext(ctx)
+	if !ok {
+		return api.CreateProviderConnection400JSONResponse(unauthorizedError(ctx)), nil
+	}
+
+	creds, err := json.Marshal(req.Body.Credentials)
+	if err != nil {
+		return api.CreateProviderConnection400JSONResponse(errBody(ctx, "validation_failed", "invalid credentials")), nil
+	}
+
+	isDefault := req.Body.IsDefault != nil && *req.Body.IsDefault
+
+	row, err := h.providers.Create(ctx, repo.CreateProviderConnectionParams{
+		OrganizationID:  tenant.OrganizationID,
+		ProjectID:       tenant.ProjectID,
+		EnvironmentID:   tenant.EnvironmentID,
+		ProviderType:    db.ProviderType(req.Body.ProviderType),
+		Channel:         db.ProviderChannel(req.Body.Channel),
+		DisplayName:     req.Body.DisplayName,
+		EncryptedConfig: string(creds),
+		IsDefault:       isDefault,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return api.CreateProviderConnection201JSONResponse(dbProviderToAPI(*row)), nil
+}
+
+func (h *Handlers) GetProviderConnection(ctx context.Context, req api.GetProviderConnectionRequestObject) (api.GetProviderConnectionResponseObject, error) {
+	tenant, ok := auth.TenantFromContext(ctx)
+	if !ok {
+		return api.GetProviderConnection404JSONResponse(notFoundError(ctx)), nil
+	}
+	row, err := h.providers.Get(ctx, req.ConnectionId, tenant.OrganizationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.GetProviderConnection404JSONResponse(notFoundError(ctx)), nil
+		}
+		return nil, err
+	}
+	return api.GetProviderConnection200JSONResponse(dbProviderToAPI(*row)), nil
+}
+
+func (h *Handlers) DeleteProviderConnection(ctx context.Context, req api.DeleteProviderConnectionRequestObject) (api.DeleteProviderConnectionResponseObject, error) {
+	tenant, ok := auth.TenantFromContext(ctx)
+	if !ok {
+		return api.DeleteProviderConnection404JSONResponse(notFoundError(ctx)), nil
+	}
+	if err := h.providers.Delete(ctx, req.ConnectionId, tenant.OrganizationID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.DeleteProviderConnection404JSONResponse(notFoundError(ctx)), nil
+		}
+		return nil, err
+	}
+	return api.DeleteProviderConnection204Response{}, nil
+}
+
 // --- Helpers ---
 
 func renderField(field *string, data map[string]any) (string, error) {
@@ -250,6 +328,19 @@ func dbTemplateToAPI(t db.Template) api.Template {
 	if t.ActiveVersion != nil {
 		v := int(*t.ActiveVersion)
 		out.ActiveVersion = &v
+	}
+	return out
+}
+
+func dbProviderToAPI(p db.ProviderConnection) api.ProviderConnection {
+	out := api.ProviderConnection{
+		Id:          p.ID,
+		ProviderType: api.ProviderType(p.ProviderType),
+		Channel:     api.ProviderConnectionChannel(p.Channel),
+		DisplayName: p.DisplayName,
+		IsDefault:   p.IsDefault,
+		IsActive:    p.IsActive,
+		CreatedAt:   p.CreatedAt.Time,
 	}
 	return out
 }

@@ -197,6 +197,94 @@ func (ns NullNotificationStatus) Value() (driver.Value, error) {
 	return string(ns.NotificationStatus), nil
 }
 
+type ProviderChannel string
+
+const (
+	ProviderChannelEmail ProviderChannel = "email"
+	ProviderChannelSms   ProviderChannel = "sms"
+	ProviderChannelPush  ProviderChannel = "push"
+)
+
+func (e *ProviderChannel) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProviderChannel(s)
+	case string:
+		*e = ProviderChannel(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProviderChannel: %T", src)
+	}
+	return nil
+}
+
+type NullProviderChannel struct {
+	ProviderChannel ProviderChannel `json:"provider_channel"`
+	Valid           bool            `json:"valid"` // Valid is true if ProviderChannel is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProviderChannel) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProviderChannel, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProviderChannel.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProviderChannel) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProviderChannel), nil
+}
+
+type ProviderType string
+
+const (
+	ProviderTypeResend   ProviderType = "resend"
+	ProviderTypeSendgrid ProviderType = "sendgrid"
+	ProviderTypeSes      ProviderType = "ses"
+	ProviderTypeTwilio   ProviderType = "twilio"
+	ProviderTypeFcm      ProviderType = "fcm"
+)
+
+func (e *ProviderType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProviderType(s)
+	case string:
+		*e = ProviderType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProviderType: %T", src)
+	}
+	return nil
+}
+
+type NullProviderType struct {
+	ProviderType ProviderType `json:"provider_type"`
+	Valid        bool         `json:"valid"` // Valid is true if ProviderType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProviderType) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProviderType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProviderType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProviderType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProviderType), nil
+}
+
 type TemplateVersionStatus string
 
 const (
@@ -324,6 +412,21 @@ type Project struct {
 	Slug           string             `db:"slug" json:"slug"`
 	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type ProviderConnection struct {
+	ID              string             `db:"id" json:"id"`
+	OrganizationID  string             `db:"organization_id" json:"organization_id"`
+	ProjectID       string             `db:"project_id" json:"project_id"`
+	EnvironmentID   string             `db:"environment_id" json:"environment_id"`
+	ProviderType    ProviderType       `db:"provider_type" json:"provider_type"`
+	Channel         ProviderChannel    `db:"channel" json:"channel"`
+	DisplayName     string             `db:"display_name" json:"display_name"`
+	EncryptedConfig string             `db:"encrypted_config" json:"encrypted_config"`
+	IsDefault       bool               `db:"is_default" json:"is_default"`
+	IsActive        bool               `db:"is_active" json:"is_active"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
 type Template struct {

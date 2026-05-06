@@ -25,6 +25,8 @@ tags:
     description: Delivery records and event timelines
   - name: templates
     description: Template management and rendering
+  - name: providers
+    description: Provider connection management
 
 components:
   securitySchemes:
@@ -215,6 +217,57 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    ProviderType:
+      type: string
+      enum: [resend, sendgrid, ses, twilio, fcm]
+
+    ProviderConnection:
+      type: object
+      required: [id, provider_type, channel, display_name, is_default, is_active, created_at]
+      properties:
+        id:
+          type: string
+          example: pc_01HX1234
+        provider_type:
+          $ref: "#/components/schemas/ProviderType"
+        channel:
+          type: string
+          enum: [email, sms, push]
+          example: email
+        display_name:
+          type: string
+          example: Resend Production
+        is_default:
+          type: boolean
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    CreateProviderConnectionRequest:
+      type: object
+      required: [provider_type, channel, display_name, credentials]
+      properties:
+        provider_type:
+          $ref: "#/components/schemas/ProviderType"
+        channel:
+          type: string
+          enum: [email, sms, push]
+        display_name:
+          type: string
+          example: Resend Production
+        credentials:
+          type: object
+          additionalProperties:
+            type: string
+          description: Provider-specific credentials. For Resend and SendGrid, provide `api_key`.
+          example:
+            api_key: re_123abc
+        is_default:
+          type: boolean
+          default: false
 
     TemplateChannel:
       type: string
@@ -498,6 +551,116 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           description: Delivery not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/provider-connections:
+    get:
+      operationId: listProviderConnections
+      summary: List provider connections
+      tags: [providers]
+      responses:
+        "200":
+          description: List of provider connections
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProviderConnection"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createProviderConnection
+      summary: Create a provider connection
+      tags: [providers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProviderConnectionRequest"
+      responses:
+        "201":
+          description: Provider connection created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderConnection"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/provider-connections/{connection_id}:
+    get:
+      operationId: getProviderConnection
+      summary: Get a provider connection
+      tags: [providers]
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Provider connection found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderConnection"
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteProviderConnection
+      summary: Delete a provider connection
+      tags: [providers]
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
           content:
             application/json:
               schema:

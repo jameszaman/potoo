@@ -27,6 +27,9 @@ type Handlers struct {
 	events        *repo.DeliveryEventRepo
 	users         *repo.UserRepo
 	sessions      *repo.SessionRepo
+	orgs          *repo.OrgRepo
+	members       *repo.OrgMemberRepo
+	apiKeys       *repo.APIKeyRepo
 	queue         *queue.Client
 }
 
@@ -39,6 +42,9 @@ func New(pool *pgxpool.Pool, q *queue.Client) *Handlers {
 		events:        repo.NewDeliveryEventRepo(pool),
 		users:         repo.NewUserRepo(pool),
 		sessions:      repo.NewSessionRepo(pool),
+		orgs:          repo.NewOrgRepo(pool),
+		members:       repo.NewOrgMemberRepo(pool),
+		apiKeys:       repo.NewAPIKeyRepo(pool),
 		queue:         q,
 	}
 }

@@ -37,21 +37,39 @@ func New(pool *pgxpool.Pool, q *queue.Client, allowedOrigin string) http.Handler
 
 	h := handlers.New(pool, q)
 
-	// Public routes — no API key required.
-	r.Post("/v1/auth/register", h.RegisterHTTP)
-	r.Post("/v1/auth/login", h.LoginHTTP)
-	r.Post("/v1/auth/logout", h.LogoutHTTP)
-	r.Post("/v1/auth/refresh", h.RefreshSessionHTTP)
-	r.Get("/v1/auth/me", h.GetMeHTTP)
+	// ── Tier 1: Fully public routes ────────────────────────────────────────
 	r.Get("/v1/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+	r.Post("/v1/setup", h.SetupHTTP)
+	r.Post("/v1/auth/register", h.RegisterHTTP)
+	r.Post("/v1/auth/login", h.LoginHTTP)
+	r.Post("/v1/auth/logout", h.LogoutHTTP)
+	r.Post("/v1/auth/refresh", h.RefreshSessionHTTP)
+	r.Get("/v1/auth/me", h.GetMeHTTP)
+	r.Post("/v1/auth/select-org", h.SelectOrgHTTP)
 	r.Post("/v1/webhooks/email/{provider}", h.IngestEmailWebhookHTTP)
 
-	// Authenticated API routes on a separate router, mounted at /.
-	// This avoids chi route conflicts with the public auth routes above.
+	// ── Tier 2: Session-authenticated routes (cookie, no API key) ──────────
+	// Registered before the api-key router so chi's first-match wins.
+	r.Group(func(r chi.Router) {
+		r.Use(auth.AuthenticateSession(pool))
+		r.Get("/v1/me/orgs", h.ListMyOrgsHTTP)
+		r.Get("/v1/api-keys", h.ListAPIKeysHTTP)
+		r.Post("/v1/api-keys", h.CreateAPIKeyHTTP)
+		r.Delete("/v1/api-keys/{keyId}", h.RevokeAPIKeyHTTP)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(auth.AuthenticateSession(pool))
+		r.Use(auth.RequirePlatformOwner(pool))
+		r.Get("/v1/platform/orgs", h.ListOrgsHTTP)
+		r.Post("/v1/platform/orgs", h.CreateOrgHTTP)
+	})
+
+	// ── Tier 3: API-key authenticated routes (all remaining strict routes) ──
 	apiRouter := chi.NewRouter()
 	apiRouter.Use(auth.Authenticate(pool))
 	api.HandlerWithOptions(api.NewStrictHandler(h, nil), api.ChiServerOptions{

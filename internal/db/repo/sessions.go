@@ -38,15 +38,24 @@ func HashRefreshToken(token string) string {
 	return hex.EncodeToString(h[:])
 }
 
-func (r *SessionRepo) Create(ctx context.Context, userID, refreshTokenHash string, expiresAt time.Time) (*db.Session, error) {
+func (r *SessionRepo) Create(ctx context.Context, userID, orgID, refreshTokenHash string, expiresAt time.Time) (*db.Session, error) {
 	row, err := r.q.CreateSession(ctx, db.CreateSessionParams{
 		ID:               newID(),
 		UserID:           userID,
+		OrgID:            orgID,
 		RefreshTokenHash: refreshTokenHash,
 		ExpiresAt:        toPgTimestamptz(expiresAt),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
+	}
+	return &row, nil
+}
+
+func (r *SessionRepo) GetByID(ctx context.Context, id string) (*db.Session, error) {
+	row, err := r.q.GetSessionByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get session by id: %w", err)
 	}
 	return &row, nil
 }
@@ -81,6 +90,16 @@ func (r *SessionRepo) Delete(ctx context.Context, sessionID string) error {
 func (r *SessionRepo) DeleteAllForUser(ctx context.Context, userID string) error {
 	if err := r.q.DeleteAllUserSessions(ctx, userID); err != nil {
 		return fmt.Errorf("delete all user sessions: %w", err)
+	}
+	return nil
+}
+
+func (r *SessionRepo) DeleteAllForUserOrg(ctx context.Context, userID, orgID string) error {
+	if err := r.q.DeleteAllUserOrgSessions(ctx, db.DeleteAllUserOrgSessionsParams{
+		UserID: userID,
+		OrgID:  orgID,
+	}); err != nil {
+		return fmt.Errorf("delete user org sessions: %w", err)
 	}
 	return nil
 }

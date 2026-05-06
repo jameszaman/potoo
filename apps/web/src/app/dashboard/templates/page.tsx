@@ -3,27 +3,22 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { Template } from "@/lib/types";
-import ApiKeyGate, { useApiKey } from "@/components/ApiKeyGate";
 import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 
-function TemplatesContent() {
-  const { apiKey } = useApiKey();
+export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  // Create template form
   const [showNew, setShowNew] = useState(false);
   const [newForm, setNewForm] = useState({ key: "", name: "", channel: "email" });
-
-  // Create version form
   const [versionForm, setVersionForm] = useState<Record<string, { subject: string; html_body: string; text_body: string }>>({});
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
     try {
-      const res = await apiFetch<{ data: Template[] }>("/v1/templates", apiKey);
+      const res = await apiFetch<{ data: Template[] }>("/v1/templates");
       setTemplates(res.data);
     } catch (e) {
       setError(String(e));
@@ -32,16 +27,13 @@ function TemplatesContent() {
     }
   };
 
-  useEffect(() => { load(); }, [apiKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateTemplate = async () => {
     setSaving(true);
     setError("");
     try {
-      await apiFetch("/v1/templates", apiKey, {
-        method: "POST",
-        body: JSON.stringify(newForm),
-      });
+      await apiFetch("/v1/templates", { method: "POST", body: JSON.stringify(newForm) });
       setShowNew(false);
       setNewForm({ key: "", name: "", channel: "email" });
       await load();
@@ -58,11 +50,11 @@ function TemplatesContent() {
     setSaving(true);
     setError("");
     try {
-      const version = await apiFetch<{ version_number: number }>(`/v1/templates/${templateKey}/versions`, apiKey, {
+      const version = await apiFetch<{ version_number: number }>(`/v1/templates/${templateKey}/versions`, {
         method: "POST",
         body: JSON.stringify({ subject: f.subject, html_body: f.html_body, text_body: f.text_body }),
       });
-      await apiFetch(`/v1/templates/${templateKey}/activate`, apiKey, {
+      await apiFetch(`/v1/templates/${templateKey}/activate`, {
         method: "POST",
         body: JSON.stringify({ version_number: version.version_number }),
       });
@@ -206,8 +198,4 @@ function TemplatesContent() {
       )}
     </div>
   );
-}
-
-export default function TemplatesPage() {
-  return <ApiKeyGate><TemplatesContent /></ApiKeyGate>;
 }

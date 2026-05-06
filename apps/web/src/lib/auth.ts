@@ -6,44 +6,47 @@ export interface AuthUser {
   created_at: string;
 }
 
-export async function login(email: string, password: string): Promise<AuthUser> {
-  const res = await fetch(`${API_BASE}/v1/auth/login`, {
+export interface OrgSummary {
+  id: string;
+  name: string;
+  slug: string;
+  type: "platform" | "customer";
+  role: "owner" | "member";
+}
+
+async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ email, password }),
+    headers: { "Content-Type": "application/json" },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? "Login failed");
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error?.message ?? `HTTP ${res.status}`);
   }
+  if (res.status === 204) return undefined as T;
   return res.json();
+}
+
+export async function setup(name: string, email: string, password: string): Promise<AuthUser> {
+  return apiPost<AuthUser>("/v1/setup", { name, email, password });
+}
+
+export async function login(email: string, password: string): Promise<AuthUser> {
+  return apiPost<AuthUser>("/v1/auth/login", { email, password });
 }
 
 export async function register(email: string, password: string): Promise<AuthUser> {
-  const res = await fetch(`${API_BASE}/v1/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? "Registration failed");
-  }
-  return res.json();
+  return apiPost<AuthUser>("/v1/auth/register", { email, password });
 }
 
 export async function logout(): Promise<void> {
-  await fetch(`${API_BASE}/v1/auth/logout`, {
-    method: "POST",
-    credentials: "include",
-  });
+  await apiPost<void>("/v1/auth/logout");
 }
 
 export async function getMe(): Promise<AuthUser | null> {
-  const res = await fetch(`${API_BASE}/v1/auth/me`, {
-    credentials: "include",
-  });
+  const res = await fetch(`${API_BASE}/v1/auth/me`, { credentials: "include" });
   if (!res.ok) return null;
   return res.json();
 }
@@ -55,4 +58,15 @@ export async function refresh(): Promise<AuthUser | null> {
   });
   if (!res.ok) return null;
   return res.json();
+}
+
+export async function listMyOrgs(): Promise<OrgSummary[]> {
+  const res = await fetch(`${API_BASE}/v1/me/orgs`, { credentials: "include" });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.data ?? [];
+}
+
+export async function selectOrg(orgId: string): Promise<AuthUser> {
+  return apiPost<AuthUser>("/v1/auth/select-org", { org_id: orgId });
 }

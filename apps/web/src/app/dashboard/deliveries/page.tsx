@@ -4,7 +4,6 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { Delivery, DeliveryEvent } from "@/lib/types";
-import ApiKeyGate, { useApiKey } from "@/components/ApiKeyGate";
 import clsx from "clsx";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -18,22 +17,19 @@ const STATUS_COLORS: Record<string, string> = {
   complained: "bg-orange-50 text-orange-700",
 };
 
-function DeliveryDetail({ deliveryId, apiKey }: { deliveryId: string; apiKey: string }) {
+function DeliveryDetail({ deliveryId }: { deliveryId: string }) {
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [events, setEvents] = useState<DeliveryEvent[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     Promise.all([
-      apiFetch<Delivery>(`/v1/deliveries/${deliveryId}`, apiKey),
-      apiFetch<{ data: DeliveryEvent[] }>(`/v1/deliveries/${deliveryId}/events`, apiKey),
+      apiFetch<Delivery>(`/v1/deliveries/${deliveryId}`),
+      apiFetch<{ data: DeliveryEvent[] }>(`/v1/deliveries/${deliveryId}/events`),
     ])
-      .then(([d, e]) => {
-        setDelivery(d);
-        setEvents(e.data);
-      })
+      .then(([d, e]) => { setDelivery(d); setEvents(e.data); })
       .catch((e) => setError(String(e)));
-  }, [deliveryId, apiKey]);
+  }, [deliveryId]);
 
   if (error) return <p className="text-sm text-red-600">{error}</p>;
   if (!delivery) return <p className="text-sm text-gray-400">Loading…</p>;
@@ -57,7 +53,6 @@ function DeliveryDetail({ deliveryId, apiKey }: { deliveryId: string; apiKey: st
           )}
         </dl>
       </div>
-
       <div className="px-5 py-4">
         <p className="text-xs font-medium text-gray-500 mb-3">Event timeline</p>
         {events.length === 0 ? (
@@ -82,10 +77,8 @@ function DeliveryDetail({ deliveryId, apiKey }: { deliveryId: string; apiKey: st
 }
 
 function DeliveriesContent() {
-  const { apiKey } = useApiKey();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
-
   const [lookupId, setLookupId] = useState(selectedId ?? "");
   const [activeId, setActiveId] = useState(selectedId ?? "");
 
@@ -93,7 +86,6 @@ function DeliveriesContent() {
     <div>
       <h1 className="text-xl font-semibold mb-0.5">Deliveries</h1>
       <p className="text-sm text-gray-500 mb-6">Look up a delivery by ID to see its status and event timeline.</p>
-
       <div className="flex gap-2 mb-6 max-w-lg">
         <input
           value={lookupId}
@@ -110,18 +102,15 @@ function DeliveriesContent() {
           Look up
         </button>
       </div>
-
-      {activeId && <DeliveryDetail key={activeId} deliveryId={activeId} apiKey={apiKey} />}
+      {activeId && <DeliveryDetail key={activeId} deliveryId={activeId} />}
     </div>
   );
 }
 
 export default function DeliveriesPage() {
   return (
-    <ApiKeyGate>
-      <Suspense>
-        <DeliveriesContent />
-      </Suspense>
-    </ApiKeyGate>
+    <Suspense>
+      <DeliveriesContent />
+    </Suspense>
   );
 }

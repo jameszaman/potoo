@@ -197,6 +197,90 @@ func (ns NullNotificationStatus) Value() (driver.Value, error) {
 	return string(ns.NotificationStatus), nil
 }
 
+type OrgRole string
+
+const (
+	OrgRoleOwner  OrgRole = "owner"
+	OrgRoleMember OrgRole = "member"
+)
+
+func (e *OrgRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = OrgRole(s)
+	case string:
+		*e = OrgRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for OrgRole: %T", src)
+	}
+	return nil
+}
+
+type NullOrgRole struct {
+	OrgRole OrgRole `json:"org_role"`
+	Valid   bool    `json:"valid"` // Valid is true if OrgRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullOrgRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.OrgRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.OrgRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullOrgRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.OrgRole), nil
+}
+
+type OrgType string
+
+const (
+	OrgTypePlatform OrgType = "platform"
+	OrgTypeCustomer OrgType = "customer"
+)
+
+func (e *OrgType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = OrgType(s)
+	case string:
+		*e = OrgType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for OrgType: %T", src)
+	}
+	return nil
+}
+
+type NullOrgType struct {
+	OrgType OrgType `json:"org_type"`
+	Valid   bool    `json:"valid"` // Valid is true if OrgType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullOrgType) Scan(value interface{}) error {
+	if value == nil {
+		ns.OrgType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.OrgType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullOrgType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.OrgType), nil
+}
+
 type ProviderChannel string
 
 const (
@@ -331,8 +415,6 @@ func (ns NullTemplateVersionStatus) Value() (driver.Value, error) {
 type ApiKey struct {
 	ID             string             `db:"id" json:"id"`
 	OrganizationID string             `db:"organization_id" json:"organization_id"`
-	ProjectID      string             `db:"project_id" json:"project_id"`
-	EnvironmentID  string             `db:"environment_id" json:"environment_id"`
 	Name           string             `db:"name" json:"name"`
 	KeyPrefix      string             `db:"key_prefix" json:"key_prefix"`
 	KeyHash        string             `db:"key_hash" json:"key_hash"`
@@ -403,6 +485,16 @@ type Organization struct {
 	Slug      string             `db:"slug" json:"slug"`
 	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	Type      OrgType            `db:"type" json:"type"`
+}
+
+type OrganizationMember struct {
+	ID        string             `db:"id" json:"id"`
+	OrgID     string             `db:"org_id" json:"org_id"`
+	UserID    string             `db:"user_id" json:"user_id"`
+	Role      OrgRole            `db:"role" json:"role"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
 type Project struct {
@@ -412,6 +504,7 @@ type Project struct {
 	Slug           string             `db:"slug" json:"slug"`
 	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	IsDefault      bool               `db:"is_default" json:"is_default"`
 }
 
 type ProviderConnection struct {
@@ -436,6 +529,7 @@ type Session struct {
 	ExpiresAt        pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	OrgID            string             `db:"org_id" json:"org_id"`
 }
 
 type Template struct {

@@ -12,14 +12,15 @@ import (
 )
 
 const createSession = `-- name: CreateSession :one
-INSERT INTO sessions (id, user_id, refresh_token_hash, expires_at)
-VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, refresh_token_hash, expires_at, created_at, updated_at
+INSERT INTO sessions (id, user_id, org_id, refresh_token_hash, expires_at)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, user_id, refresh_token_hash, expires_at, created_at, updated_at, org_id
 `
 
 type CreateSessionParams struct {
 	ID               string             `db:"id" json:"id"`
 	UserID           string             `db:"user_id" json:"user_id"`
+	OrgID            string             `db:"org_id" json:"org_id"`
 	RefreshTokenHash string             `db:"refresh_token_hash" json:"refresh_token_hash"`
 	ExpiresAt        pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 }
@@ -28,6 +29,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 	row := q.db.QueryRow(ctx, createSession,
 		arg.ID,
 		arg.UserID,
+		arg.OrgID,
 		arg.RefreshTokenHash,
 		arg.ExpiresAt,
 	)
@@ -39,8 +41,23 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OrgID,
 	)
 	return i, err
+}
+
+const deleteAllUserOrgSessions = `-- name: DeleteAllUserOrgSessions :exec
+DELETE FROM sessions WHERE user_id = $1 AND org_id = $2
+`
+
+type DeleteAllUserOrgSessionsParams struct {
+	UserID string `db:"user_id" json:"user_id"`
+	OrgID  string `db:"org_id" json:"org_id"`
+}
+
+func (q *Queries) DeleteAllUserOrgSessions(ctx context.Context, arg DeleteAllUserOrgSessionsParams) error {
+	_, err := q.db.Exec(ctx, deleteAllUserOrgSessions, arg.UserID, arg.OrgID)
+	return err
 }
 
 const deleteAllUserSessions = `-- name: DeleteAllUserSessions :exec
@@ -70,8 +87,27 @@ func (q *Queries) DeleteSessionByRefreshTokenHash(ctx context.Context, refreshTo
 	return err
 }
 
+const getSessionByID = `-- name: GetSessionByID :one
+SELECT id, user_id, refresh_token_hash, expires_at, created_at, updated_at, org_id FROM sessions WHERE id = $1
+`
+
+func (q *Queries) GetSessionByID(ctx context.Context, id string) (Session, error) {
+	row := q.db.QueryRow(ctx, getSessionByID, id)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.RefreshTokenHash,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OrgID,
+	)
+	return i, err
+}
+
 const getSessionByRefreshTokenHash = `-- name: GetSessionByRefreshTokenHash :one
-SELECT id, user_id, refresh_token_hash, expires_at, created_at, updated_at FROM sessions
+SELECT id, user_id, refresh_token_hash, expires_at, created_at, updated_at, org_id FROM sessions
 WHERE refresh_token_hash = $1
 LIMIT 1
 `
@@ -86,6 +122,7 @@ func (q *Queries) GetSessionByRefreshTokenHash(ctx context.Context, refreshToken
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OrgID,
 	)
 	return i, err
 }
@@ -96,7 +133,7 @@ SET refresh_token_hash = $2,
     expires_at         = $3,
     updated_at         = NOW()
 WHERE id = $1
-RETURNING id, user_id, refresh_token_hash, expires_at, created_at, updated_at
+RETURNING id, user_id, refresh_token_hash, expires_at, created_at, updated_at, org_id
 `
 
 type RotateSessionParams struct {
@@ -115,6 +152,7 @@ func (q *Queries) RotateSession(ctx context.Context, arg RotateSessionParams) (S
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OrgID,
 	)
 	return i, err
 }

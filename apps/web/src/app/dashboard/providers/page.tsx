@@ -3,11 +3,9 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { ProviderConnection } from "@/lib/types";
-import ApiKeyGate, { useApiKey } from "@/components/ApiKeyGate";
 import { Plus, Trash2 } from "lucide-react";
 
-function ProvidersContent() {
-  const { apiKey } = useApiKey();
+export default function ProvidersPage() {
   const [connections, setConnections] = useState<ProviderConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -23,7 +21,7 @@ function ProvidersContent() {
 
   const load = async () => {
     try {
-      const res = await apiFetch<{ data: ProviderConnection[] }>("/v1/provider-connections", apiKey);
+      const res = await apiFetch<{ data: ProviderConnection[] }>("/v1/provider-connections");
       setConnections(res.data);
     } catch (e) {
       setError(String(e));
@@ -32,13 +30,13 @@ function ProvidersContent() {
     }
   };
 
-  useEffect(() => { load(); }, [apiKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreate = async () => {
     setSaving(true);
     setError("");
     try {
-      await apiFetch("/v1/provider-connections", apiKey, {
+      await apiFetch("/v1/provider-connections", {
         method: "POST",
         body: JSON.stringify({
           provider_type: form.provider_type,
@@ -61,7 +59,7 @@ function ProvidersContent() {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this provider connection?")) return;
     try {
-      await apiFetch(`/v1/provider-connections/${id}`, apiKey, { method: "DELETE" });
+      await apiFetch(`/v1/provider-connections/${id}`, { method: "DELETE" });
       await load();
     } catch (e) {
       setError(String(e));
@@ -183,8 +181,4 @@ function ProvidersContent() {
       )}
     </div>
   );
-}
-
-export default function ProvidersPage() {
-  return <ApiKeyGate><ProvidersContent /></ApiKeyGate>;
 }

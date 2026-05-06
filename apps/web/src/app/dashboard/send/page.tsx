@@ -2,16 +2,10 @@
 
 import { useState } from "react";
 import { apiFetch } from "@/lib/api";
-import ApiKeyGate, { useApiKey } from "@/components/ApiKeyGate";
 import { CheckCircle } from "lucide-react";
 
-function SendContent() {
-  const { apiKey } = useApiKey();
-  const [form, setForm] = useState({
-    template_key: "",
-    recipient_email: "",
-    data: "",
-  });
+export default function SendPage() {
+  const [form, setForm] = useState({ template_key: "", recipient_email: "", data: "" });
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ notification_id: string; delivery_id: string } | null>(null);
   const [error, setError] = useState("");
@@ -22,22 +16,16 @@ function SendContent() {
     setResult(null);
     try {
       let templateData: Record<string, unknown> = {};
-      if (form.data.trim()) {
-        templateData = JSON.parse(form.data);
-      }
+      if (form.data.trim()) templateData = JSON.parse(form.data);
 
-      const res = await apiFetch<{ notification_id: string; delivery_id: string }>(
-        "/v1/notifications",
-        apiKey,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            channel: "email",
-            recipient: { email: form.recipient_email },
-            template: { key: form.template_key, data: templateData },
-          }),
-        }
-      );
+      const res = await apiFetch<{ notification_id: string; delivery_id: string }>("/v1/notifications", {
+        method: "POST",
+        body: JSON.stringify({
+          channel: "email",
+          recipient: { email: form.recipient_email },
+          template: { key: form.template_key, data: templateData },
+        }),
+      });
       setResult(res);
     } catch (e) {
       setError(String(e));
@@ -70,16 +58,10 @@ function SendContent() {
             </div>
           </dl>
           <div className="mt-4 flex gap-2">
-            <a
-              href={`/dashboard/deliveries?id=${result.delivery_id}`}
-              className="text-sm text-gray-900 underline underline-offset-2"
-            >
+            <a href={`/dashboard/deliveries?id=${result.delivery_id}`} className="text-sm text-gray-900 underline underline-offset-2">
               View delivery →
             </a>
-            <button
-              onClick={() => setResult(null)}
-              className="text-sm text-gray-500 hover:text-gray-900"
-            >
+            <button onClick={() => setResult(null)} className="text-sm text-gray-500 hover:text-gray-900">
               Send another
             </button>
           </div>
@@ -130,8 +112,4 @@ function SendContent() {
       )}
     </div>
   );
-}
-
-export default function SendPage() {
-  return <ApiKeyGate><SendContent /></ApiKeyGate>;
 }

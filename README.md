@@ -11,6 +11,7 @@ A developer-first notification orchestration platform. One API for email — wit
 - Template management with versioning and variable rendering
 - Background delivery with automatic retries (Asynq + Redis)
 - Inbound provider webhooks update the delivery timeline in real time
+- Multi-tenant: platform org controls customer organizations
 - Dashboard to manage providers, templates, send tests, and view delivery logs
 
 ---
@@ -23,7 +24,7 @@ A developer-first notification orchestration platform. One API for email — wit
 | Database | PostgreSQL 16, goose, sqlc + pgx/v5 |
 | Queue | Redis + Asynq |
 | Dashboard | Next.js 16, TypeScript, Tailwind CSS |
-| Auth | Clerk (dashboard), API keys (customer API) |
+| Auth | JWT + HttpOnly cookies (dashboard), API keys (customer API) |
 
 ---
 
@@ -49,6 +50,17 @@ make db-up       # start Postgres + Redis
 make migrate     # run database migrations
 ```
 
+### Environment variables
+
+Copy `.env` and fill in values. All variables are required:
+
+```
+DATABASE_URL=postgres://user@localhost:5432/notify?sslmode=disable
+REDIS_ADDR=localhost:6379
+ALLOWED_ORIGIN=http://localhost:3000
+JWT_SECRET=change-before-deploy
+```
+
 ### Running the services
 
 ```bash
@@ -57,13 +69,9 @@ make worker      # background worker
 make web         # Next.js dashboard on :3000
 ```
 
-### Dashboard setup
+### First run
 
-Copy the environment file and fill in your [Clerk](https://clerk.com) keys:
-
-```bash
-cp apps/web/.env.local.example apps/web/.env.local
-```
+Navigate to `http://localhost:3000/setup` to create the platform organization and your owner account. This route is only available once — it returns 410 Gone after setup is complete.
 
 ---
 
@@ -71,13 +79,13 @@ cp apps/web/.env.local.example apps/web/.env.local
 
 Base URL: `http://localhost:8080`
 
-Authenticate all requests with an API key:
+Customer API requests authenticate with an API key:
 
 ```
 Authorization: Bearer <api_key>
 ```
 
-Interactive docs available at [http://localhost:8080/docs](http://localhost:8080/docs).
+Interactive docs at [http://localhost:8080/docs](http://localhost:8080/docs).
 
 ### Key endpoints
 
@@ -87,7 +95,7 @@ Interactive docs available at [http://localhost:8080/docs](http://localhost:8080
 | `GET` | `/v1/notifications/:id` | Get a notification |
 | `GET` | `/v1/deliveries/:id` | Get a delivery |
 | `GET` | `/v1/deliveries/:id/events` | Get the delivery event timeline |
-| `POST` | `/v1/webhooks/email/:provider` | Inbound provider webhook (no auth) |
+| `POST` | `/v1/webhooks/email/:provider` | Inbound provider webhook |
 | `GET/POST` | `/v1/provider-connections` | Manage provider connections |
 | `GET/POST` | `/v1/templates` | Manage templates |
 
@@ -135,10 +143,21 @@ cmd/
   migrate/             # Migration runner
 internal/
   api/                 # Handlers, middleware, router
+  auth/                # API key and session middleware, context helpers
   db/                  # Migrations, queries, sqlc output, repos
   gen/                 # Generated code (do not edit)
+  jwtutil/             # JWT signing and verification
   providers/           # Resend and SendGrid adapters
   queue/               # Asynq client and task definitions
   template/            # Template renderer
   worker/              # Email delivery worker
 ```
+
+---
+
+## Planned
+
+- **Projects and environments** — customer orgs will be able to create multiple projects (e.g. one per app) each with `development`, `staging`, and `production` environments. API keys will be scoped per environment, enabling rate limiting and separate provider configs per env. The database schema (`projects`, `environments` tables) is already in place; the management UI and API endpoints are not yet built.
+- SMS and push notification channels
+- Suppression lists and recipient preferences
+- Customer-configured outbound webhooks

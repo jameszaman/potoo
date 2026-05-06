@@ -17,7 +17,8 @@ const (
 )
 
 type Claims struct {
-	UserID string `json:"sub"`
+	UserID    string `json:"sub"`
+	SessionID string `json:"sid"`
 	jwt.RegisteredClaims
 }
 
@@ -29,15 +30,12 @@ func secret() []byte {
 	return []byte(s)
 }
 
-func SignAccess(userID string) (string, error) {
-	return sign(userID, AccessTTL)
-}
-
-func sign(userID string, ttl time.Duration) (string, error) {
+func SignAccess(userID, sessionID string) (string, error) {
 	claims := Claims{
-		UserID: userID,
+		UserID:    userID,
+		SessionID: sessionID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}

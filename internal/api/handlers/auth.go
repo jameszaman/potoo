@@ -116,7 +116,14 @@ func (h *Handlers) LoginHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, refreshToken, err := h.createSession(ctx, user.ID)
+	// Resolve the org for this session — pick the first org the user belongs to.
+	orgs, err := h.members.ListUserOrgs(ctx, user.ID)
+	if err != nil || len(orgs) == 0 {
+		writeJSONError(w, r, http.StatusForbidden, "no_org", "User is not a member of any organization")
+		return
+	}
+
+	accessToken, refreshToken, err := h.createSession(ctx, user.ID, orgs[0].ID)
 	if err != nil {
 		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "could not create session")
 		return
@@ -180,7 +187,7 @@ func (h *Handlers) RefreshSessionHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, err := jwtutil.SignAccess(session.UserID)
+	accessToken, err := jwtutil.SignAccess(session.UserID, session.ID)
 	if err != nil {
 		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "could not issue access token")
 		return
@@ -267,15 +274,16 @@ func (h *Handlers) GetMeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // --- Session helpers ---
 
-func (h *Handlers) createSession(ctx context.Context, userID string) (accessToken, refreshToken string, err error) {
+func (h *Handlers) createSession(ctx context.Context, userID, orgID string) (accessToken, refreshToken string, err error) {
 	refreshToken, hash, err := repo.GenerateRefreshToken()
 	if err != nil {
 		return "", "", err
 	}
-	if _, err = h.sessions.Create(ctx, userID, hash, time.Now().Add(jwtutil.RefreshTTL)); err != nil {
+	session, err := h.sessions.Create(ctx, userID, orgID, hash, time.Now().Add(jwtutil.RefreshTTL))
+	if err != nil {
 		return "", "", err
 	}
-	accessToken, err = jwtutil.SignAccess(userID)
+	accessToken, err = jwtutil.SignAccess(userID, session.ID)
 	if err != nil {
 		return "", "", err
 	}

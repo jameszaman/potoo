@@ -1,7 +1,7 @@
 openapi: "3.0.3"
 
 info:
-  title: NotifyLayer API
+  title: Potoo API
   version: "0.1.0"
   description: |
     Developer-first notification orchestration platform.
@@ -39,7 +39,7 @@ components:
     ApiKeyAuth:
       type: http
       scheme: bearer
-      description: API key issued from the NotifyLayer dashboard.
+      description: API key issued from the Potoo dashboard.
 
   schemas:
     AuthUser:
@@ -306,7 +306,7 @@ components:
               example: req_01HX1234
             docs_url:
               type: string
-              example: https://docs.notifylayer.com/errors/validation_failed
+              example: https://docs.potoo.com/errors/validation_failed
 
     HealthResponse:
       type: object

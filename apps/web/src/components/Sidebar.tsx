@@ -60,7 +60,7 @@ export default function Sidebar() {
   return (
     <aside className="w-56 shrink-0 flex flex-col border-r border-gray-200 bg-white min-h-screen">
       <div className="h-14 flex items-center px-5 border-b border-gray-200">
-        <span className="font-semibold text-gray-900 tracking-tight">NotifyLayer</span>
+        <span className="font-semibold text-gray-900 tracking-tight">Potoo</span>
       </div>
 
       {/* Org switcher */}

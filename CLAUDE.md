@@ -1,4 +1,4 @@
-# NotifyLayer — Claude Code Instructions
+# Potoo — Claude Code Instructions
 
 ---
 

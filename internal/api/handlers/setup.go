@@ -10,10 +10,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"github.com/notifylayer/notifylayer/internal/auth"
-	db "github.com/notifylayer/notifylayer/internal/db/sqlc"
-	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
-	"github.com/notifylayer/notifylayer/internal/jwtutil"
+	"github.com/potoo/potoo/internal/auth"
+	db "github.com/potoo/potoo/internal/db/sqlc"
+	api "github.com/potoo/potoo/internal/gen/openapi"
+	"github.com/potoo/potoo/internal/jwtutil"
 )
 
 // GetPlatformStatusHTTP returns whether the platform has been bootstrapped.

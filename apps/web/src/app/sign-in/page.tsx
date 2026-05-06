@@ -30,7 +30,7 @@ export default function SignInPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white border border-gray-200 rounded-lg p-8 w-full max-w-sm shadow-sm">
         <h1 className="text-lg font-semibold mb-1">Sign in</h1>
-        <p className="text-sm text-gray-500 mb-6">Welcome back to NotifyLayer.</p>
+        <p className="text-sm text-gray-500 mb-6">Welcome back to Potoo.</p>
 
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 

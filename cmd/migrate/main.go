@@ -14,7 +14,7 @@ import (
 const migrationsDir = "internal/db/migrations"
 
 func main() {
-	dsn := envOr("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/notify?sslmode=disable")
+	dsn := envOr("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/potoo?sslmode=disable")
 	command := "up"
 	if len(os.Args) > 1 {
 		command = os.Args[1]

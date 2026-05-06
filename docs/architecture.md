@@ -2,7 +2,7 @@
 
 ## Overview
 
-NotifyLayer is a notification orchestration layer. It does not own delivery infrastructure. It accepts send requests from customer applications, routes them through customer-supplied provider credentials, and returns normalized delivery events.
+Potoo is a notification orchestration layer. It does not own delivery infrastructure. It accepts send requests from customer applications, routes them through customer-supplied provider credentials, and returns normalized delivery events.
 
 ---
 

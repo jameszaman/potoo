@@ -5,11 +5,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/notifylayer/notifylayer/internal/db/repo"
-	"github.com/notifylayer/notifylayer/internal/jwtutil"
+	"github.com/potoo/potoo/internal/db/repo"
+	"github.com/potoo/potoo/internal/jwtutil"
 )
 
-// AuthenticateSession validates the nl_access cookie, looks up the session in DB
+// AuthenticateSession validates the pt_access cookie, looks up the session in DB
 // to resolve org_id, and stores a SessionContext in the request context.
 // org_id is NEVER taken from the JWT — always from the DB session row.
 func AuthenticateSession(pool *pgxpool.Pool) func(http.Handler) http.Handler {

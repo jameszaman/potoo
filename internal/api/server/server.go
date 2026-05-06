@@ -9,11 +9,11 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/notifylayer/notifylayer/internal/api/handlers"
-	"github.com/notifylayer/notifylayer/internal/api/middleware"
-	"github.com/notifylayer/notifylayer/internal/auth"
-	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
-	"github.com/notifylayer/notifylayer/internal/queue"
+	"github.com/potoo/potoo/internal/api/handlers"
+	"github.com/potoo/potoo/internal/api/middleware"
+	"github.com/potoo/potoo/internal/auth"
+	api "github.com/potoo/potoo/internal/gen/openapi"
+	"github.com/potoo/potoo/internal/queue"
 )
 
 func New(pool *pgxpool.Pool, q *queue.Client, allowedOrigin string) http.Handler {
@@ -91,7 +91,7 @@ func swaggerUI(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprint(w, `<!DOCTYPE html>
 <html>
 <head>
-  <title>NotifyLayer API</title>
+  <title>Potoo API</title>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css">

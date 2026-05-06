@@ -11,12 +11,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/notifylayer/notifylayer/internal/auth"
-	"github.com/notifylayer/notifylayer/internal/db/repo"
-	"github.com/notifylayer/notifylayer/internal/db/sqlc"
-	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
-	"github.com/notifylayer/notifylayer/internal/queue"
-	tmpl "github.com/notifylayer/notifylayer/internal/template"
+	"github.com/potoo/potoo/internal/auth"
+	"github.com/potoo/potoo/internal/db/repo"
+	"github.com/potoo/potoo/internal/db/sqlc"
+	api "github.com/potoo/potoo/internal/gen/openapi"
+	"github.com/potoo/potoo/internal/queue"
+	tmpl "github.com/potoo/potoo/internal/template"
 )
 
 type Handlers struct {

@@ -8,9 +8,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/notifylayer/notifylayer/internal/auth"
-	db "github.com/notifylayer/notifylayer/internal/db/sqlc"
-	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
+	"github.com/potoo/potoo/internal/auth"
+	db "github.com/potoo/potoo/internal/db/sqlc"
+	api "github.com/potoo/potoo/internal/gen/openapi"
 )
 
 // CreateInvite satisfies the strict interface — real work is done in CreateInviteHTTP.

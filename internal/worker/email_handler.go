@@ -12,13 +12,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/notifylayer/notifylayer/internal/db/repo"
-	"github.com/notifylayer/notifylayer/internal/db/sqlc"
-	"github.com/notifylayer/notifylayer/internal/providers/email"
-	"github.com/notifylayer/notifylayer/internal/providers/email/resend"
-	"github.com/notifylayer/notifylayer/internal/providers/email/sendgrid"
-	"github.com/notifylayer/notifylayer/internal/queue"
-	tmpl "github.com/notifylayer/notifylayer/internal/template"
+	"github.com/potoo/potoo/internal/db/repo"
+	"github.com/potoo/potoo/internal/db/sqlc"
+	"github.com/potoo/potoo/internal/providers/email"
+	"github.com/potoo/potoo/internal/providers/email/resend"
+	"github.com/potoo/potoo/internal/providers/email/sendgrid"
+	"github.com/potoo/potoo/internal/queue"
+	tmpl "github.com/potoo/potoo/internal/template"
 )
 
 type EmailHandler struct {
@@ -158,7 +158,7 @@ func (h *EmailHandler) buildSendInput(ctx context.Context, n *db.Notification) (
 
 	return email.SendInput{
 		To:      recipient,
-		From:    "notifications@notifylayer.com",
+		From:    "notifications@potoo.dev",
 		Subject: subject,
 		HTML:    htmlBody,
 		Text:    textBody,

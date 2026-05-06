@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/notifylayer/notifylayer/internal/db/sqlc"
+	"github.com/potoo/potoo/internal/db/sqlc"
 )
 
 type TemplateRepo struct {

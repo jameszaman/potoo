@@ -17,10 +17,10 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	db "github.com/notifylayer/notifylayer/internal/db/sqlc"
-	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
-	"github.com/notifylayer/notifylayer/internal/db/repo"
-	"github.com/notifylayer/notifylayer/internal/jwtutil"
+	db "github.com/potoo/potoo/internal/db/sqlc"
+	api "github.com/potoo/potoo/internal/gen/openapi"
+	"github.com/potoo/potoo/internal/db/repo"
+	"github.com/potoo/potoo/internal/jwtutil"
 )
 
 // --- Register (creates a customer org + owner together) ---

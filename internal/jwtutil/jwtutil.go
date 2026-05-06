@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	AccessCookieName  = "nl_access"
-	RefreshCookieName = "nl_refresh"
+	AccessCookieName  = "pt_access"
+	RefreshCookieName = "pt_refresh"
 	AccessTTL         = 15 * time.Minute
 	RefreshTTL        = 30 * 24 * time.Hour
 )

@@ -6,7 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	db "github.com/notifylayer/notifylayer/internal/db/sqlc"
+	db "github.com/potoo/potoo/internal/db/sqlc"
 )
 
 type OrgMemberRepo struct {

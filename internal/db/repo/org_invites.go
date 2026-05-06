@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	db "github.com/notifylayer/notifylayer/internal/db/sqlc"
+	db "github.com/potoo/potoo/internal/db/sqlc"
 )
 
 const inviteTTL = 7 * 24 * time.Hour

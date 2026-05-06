@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oklog/ulid/v2"
 
-	"github.com/notifylayer/notifylayer/internal/db/sqlc"
+	"github.com/potoo/potoo/internal/db/sqlc"
 )
 
 type NotificationRepo struct {

@@ -8,9 +8,9 @@ import (
 
 	"github.com/hibiken/asynq"
 
-	"github.com/notifylayer/notifylayer/internal/db"
-	"github.com/notifylayer/notifylayer/internal/queue"
-	"github.com/notifylayer/notifylayer/internal/worker"
+	"github.com/potoo/potoo/internal/db"
+	"github.com/potoo/potoo/internal/queue"
+	"github.com/potoo/potoo/internal/worker"
 )
 
 func main() {

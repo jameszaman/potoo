@@ -1,4 +1,4 @@
-# NotifyLayer — Agent Instructions
+# Potoo — Agent Instructions
 
 This file is loaded automatically by OpenAI Codex and compatible agents. For Claude Code, see `CLAUDE.md`.
 

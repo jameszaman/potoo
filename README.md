@@ -1,4 +1,4 @@
-# NotifyLayer
+# Potoo
 
 A developer-first notification orchestration platform. One API for email — with templates, routing, retries, and provider failover.
 
@@ -43,8 +43,8 @@ A developer-first notification orchestration platform. One API for email — wit
 ### First-time setup
 
 ```bash
-git clone https://github.com/notifylayer/notifylayer.git
-cd notifylayer
+git clone https://github.com/potoo/potoo.git
+cd potoo
 make setup       # install deps and git hooks
 make db-up       # start Postgres + Redis
 make migrate     # run database migrations
@@ -55,7 +55,7 @@ make migrate     # run database migrations
 Copy `.env` and fill in values. All variables are required:
 
 ```
-DATABASE_URL=postgres://user@localhost:5432/notify?sslmode=disable
+DATABASE_URL=postgres://user@localhost:5432/potoo?sslmode=disable
 REDIS_ADDR=localhost:6379
 ALLOWED_ORIGIN=http://localhost:3000
 JWT_SECRET=change-before-deploy

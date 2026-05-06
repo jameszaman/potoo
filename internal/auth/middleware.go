@@ -10,8 +10,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/notifylayer/notifylayer/internal/db/repo"
-	"github.com/notifylayer/notifylayer/internal/jwtutil"
+	"github.com/potoo/potoo/internal/db/repo"
+	"github.com/potoo/potoo/internal/jwtutil"
 )
 
 // Authenticate validates a Bearer API key, resolves the tenant's default project
@@ -129,7 +129,7 @@ func AuthenticateEither(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 			}
 
 			// Fall back to session cookie.
-			cookie, err := r.Cookie("nl_access")
+			cookie, err := r.Cookie("pt_access")
 			if err != nil {
 				writeUnauthorized(w, r, "unauthenticated", "Authorization header or session cookie required")
 				return

@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/notifylayer/notifylayer/internal/providers/email"
+	"github.com/potoo/potoo/internal/providers/email"
 )
 
 const baseURL = "https://api.resend.com"

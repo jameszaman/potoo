@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NotifyLayer",
+  title: "Potoo",
   description: "Developer-first notification orchestration platform",
 };
 

@@ -1,4 +1,4 @@
-module github.com/notifylayer/notifylayer
+module github.com/potoo/potoo
 
 go 1.26.0
 

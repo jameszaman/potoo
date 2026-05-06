@@ -28,8 +28,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const accessToken = req.cookies.get("nl_access");
-  const refreshToken = req.cookies.get("nl_refresh");
+  const accessToken = req.cookies.get("pt_access");
+  const refreshToken = req.cookies.get("pt_refresh");
 
   if (accessToken?.value) {
     return NextResponse.next();
@@ -39,7 +39,7 @@ export async function middleware(req: NextRequest) {
     try {
       const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
         method: "POST",
-        headers: { Cookie: `nl_refresh=${refreshToken.value}` },
+        headers: { Cookie: `pt_refresh=${refreshToken.value}` },
       });
 
       if (res.ok) {

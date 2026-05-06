@@ -13,11 +13,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/notifylayer/notifylayer/internal/db/repo"
-	db "github.com/notifylayer/notifylayer/internal/db/sqlc"
-	"github.com/notifylayer/notifylayer/internal/providers/email"
-	"github.com/notifylayer/notifylayer/internal/providers/email/resend"
-	"github.com/notifylayer/notifylayer/internal/providers/email/sendgrid"
+	"github.com/potoo/potoo/internal/db/repo"
+	db "github.com/potoo/potoo/internal/db/sqlc"
+	"github.com/potoo/potoo/internal/providers/email"
+	"github.com/potoo/potoo/internal/providers/email/resend"
+	"github.com/potoo/potoo/internal/providers/email/sendgrid"
 )
 
 // IngestEmailWebhookHTTP is a plain http.HandlerFunc registered outside the strict

@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/notifylayer/notifylayer/internal/api/server"
-	"github.com/notifylayer/notifylayer/internal/db"
-	"github.com/notifylayer/notifylayer/internal/queue"
+	"github.com/potoo/potoo/internal/api/server"
+	"github.com/potoo/potoo/internal/db"
+	"github.com/potoo/potoo/internal/queue"
 )
 
 func main() {

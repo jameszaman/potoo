@@ -66,7 +66,7 @@ repos:
   # Go: lint
   # ---------------------------------------------------------------------------
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.1.6
+    rev: v2.12.2
     hooks:
       - id: golangci-lint
         args: ["--fix=false", "--timeout=120s"]
@@ -116,7 +116,7 @@ repos:
       - id: pnpm-lint
         name: pnpm lint
         language: system
-        entry: bash -c "cd apps/web && pnpm lint"
+        entry: bash -c "export PNPM_HOME=$HOME/Library/pnpm && export PATH=$PNPM_HOME:$PATH && cd apps/web && pnpm lint"
         types: [file]
         files: ^apps/web/.*\.(ts|tsx|js|jsx)$
         pass_filenames: false
@@ -124,7 +124,7 @@ repos:
       - id: pnpm-format-check
         name: pnpm format check
         language: system
-        entry: bash -c "cd apps/web && pnpm format:check"
+        entry: bash -c "export PNPM_HOME=$HOME/Library/pnpm && export PATH=$PNPM_HOME:$PATH && cd apps/web && pnpm format:check"
         types: [file]
         files: ^apps/web/.*\.(ts|tsx|js|jsx|json|css)$
         pass_filenames: false

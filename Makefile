@@ -32,7 +32,7 @@ migrate:
 	go run ./cmd/migrate up
 
 generate:
-	oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml
+	~/go/bin/oapi-codegen --config api/oapi-codegen.yaml api/openapi.yaml
 	sqlc generate
 
 lint:

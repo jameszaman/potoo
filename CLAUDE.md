@@ -43,7 +43,7 @@ make test-integration  # integration tests
 
 1. Read `README.md` and `api/openapi.yaml` before editing code.
 2. Never implement public API behavior without updating `api/openapi.yaml` first.
-3. Never edit `internal/gen/` or `internal/db/sqlc/` — they are generated.
+3. Never edit `internal/gen/` — it is generated. (sqlc output will live in `internal/db/sqlc/` once Phase 2 begins.)
 4. Run `make generate` after changing the OpenAPI spec or SQL queries.
 5. Run `make lint test` before reporting a task complete.
 6. Handlers must be thin — business logic goes in services.
@@ -67,16 +67,17 @@ make test-integration  # integration tests
 ```
 api/openapi.yaml              API contract — edit this first
 api/oapi-codegen.yaml         Code generation config
-internal/gen/openapi/         Generated Go types and server interface
-internal/db/migrations/       goose migration files
-internal/db/queries/          sqlc input SQL
-internal/db/sqlc/             Generated database code
-internal/providers/           Provider adapters (email, sms, push)
+internal/gen/openapi/         Generated Go types and server interface (do not edit)
+internal/http/handlers/       HTTP handlers (thin — business logic goes in services)
+internal/http/middleware/     Request ID, logging, recovery middleware
+internal/http/server/         chi router setup
 apps/web/                     Next.js dashboard
 cmd/api/main.go               API server entry point
 cmd/worker/main.go            Worker entry point
 cmd/migrate/main.go           Migration runner entry point
 ```
+
+Packages such as `internal/db/`, `internal/providers/`, `internal/notifications/` etc. are created when the corresponding phase begins — not before.
 
 ---
 
@@ -88,15 +89,14 @@ Customer apps call `POST /v1/notifications`. The Go API authenticates the API ke
 
 ## Current phase
 
-**Phase 1 — OpenAPI and API skeleton.**
+**Phase 1 complete.** `GET /v1/health` returns 200 and `GET /docs` loads Swagger UI.
+
+**Next: Phase 2 — Database foundation.**
 
 Tasks:
-1. Define OpenAPI base metadata and health endpoint.
-2. Add auth scheme for API keys.
-3. Add notification and delivery schemas.
-4. Configure oapi-codegen and run `make generate`.
-5. Create chi server wired to the generated interface.
-6. Serve Swagger UI at `/docs`.
-7. Add request ID, structured logging, and panic recovery middleware.
+1. Add goose migrations for all core entities.
+2. Configure sqlc and write initial queries.
+3. Implement a repository layer.
+4. Add a test helper and seed script.
 
-Done when `GET /v1/health` returns 200 and `GET /docs` loads Swagger UI.
+Done when `make migrate && sqlc generate && go test ./internal/db/...` pass.

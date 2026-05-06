@@ -1,0 +1,28 @@
+extends:
+  - spectral:oas
+
+rules:
+  # Require all operations to have a description
+  operation-description: error
+  # Require all operations to have at least one tag
+  operation-tags: error
+  # Require operationId on all operations
+  operation-operationId: error
+  # Require operationIds to be unique
+  operation-operationId-unique: error
+  # operationId must be URL-safe
+  operation-operationId-valid-in-url: error
+  # No trailing slashes on paths
+  path-keys-no-trailing-slash: error
+  # No query strings in path keys
+  path-not-include-query: error
+  # Parameters in path must be declared
+  path-declarations-must-exist: error
+  # All tags used in operations must be defined at the top level
+  operation-tag-defined: error
+  # OAS3 parameter descriptions
+  oas3-parameter-description: warn
+  # OAS3 servers must not use example.com
+  oas3-server-not-example.com: warn
+  # No trailing slash on OAS3 server URLs
+  oas3-server-trailing-slash: error

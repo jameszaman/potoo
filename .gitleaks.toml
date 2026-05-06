@@ -1,0 +1,12 @@
+[extend]
+# Use the default gitleaks ruleset as a base
+useDefault = true
+
+[allowlist]
+description = "Project-level allowlist"
+paths = [
+  # Example files are safe, they contain placeholder variable names, not real secrets
+  '''.env.example''',
+  # Test fixtures may contain intentionally fake keys
+  '''testdata/''',
+]

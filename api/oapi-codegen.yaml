@@ -1,0 +1,9 @@
+package: openapi
+generate:
+  models: true
+  chi-server: true
+  strict-server: true
+  embedded-spec: true
+output: internal/gen/openapi/openapi.gen.go
+import-mapping:
+  ./openapi.yaml: github.com/notifylayer/notifylayer/internal/gen/openapi

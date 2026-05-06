@@ -1,0 +1,138 @@
+repos:
+  # ---------------------------------------------------------------------------
+  # General hygiene
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: no-commit-to-branch
+        args: ["--branch", "main"]
+
+  # ---------------------------------------------------------------------------
+  # Secrets detection, must run before any language-specific hooks
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # ---------------------------------------------------------------------------
+  # Shell scripts
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        files: ^scripts/.*\.sh$
+
+  # ---------------------------------------------------------------------------
+  # Dockerfile
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.13.1-beta
+    hooks:
+      - id: hadolint
+        args: ["--config", ".hadolint.yaml"]
+
+  # ---------------------------------------------------------------------------
+  # Go: format, vet, test
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+        files: \.go$
+      - id: go-unit-tests
+        files: \.go$
+
+  - repo: local
+    hooks:
+      - id: go-vet
+        name: go vet
+        language: system
+        entry: go vet ./...
+        pass_filenames: false
+        files: \.go$
+
+  # ---------------------------------------------------------------------------
+  # Go: lint
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.1.6
+    hooks:
+      - id: golangci-lint
+        args: ["--fix=false", "--timeout=120s"]
+
+  # ---------------------------------------------------------------------------
+  # Go: vulnerability scan
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: govulncheck
+        name: govulncheck
+        language: system
+        entry: /Users/hedayet/go/bin/govulncheck ./...
+        pass_filenames: false
+        files: \.go$
+
+  # ---------------------------------------------------------------------------
+  # SQL migrations
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 3.4.0
+    hooks:
+      - id: sqlfluff-lint
+        files: ^internal/db/migrations/.*\.sql$
+        args: ["--dialect", "postgres"]
+      - id: sqlfluff-fix
+        files: ^internal/db/migrations/.*\.sql$
+        args: ["--dialect", "postgres"]
+
+  # ---------------------------------------------------------------------------
+  # OpenAPI spec validation
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: spectral-lint
+        name: spectral lint OpenAPI
+        language: system
+        entry: /Users/hedayet/.npm-global/bin/spectral lint api/openapi.yaml --ruleset .spectral.yaml
+        pass_filenames: false
+        files: ^api/openapi\.yaml$
+
+  # ---------------------------------------------------------------------------
+  # Frontend: lint and format
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: pnpm-lint
+        name: pnpm lint
+        language: system
+        entry: bash -c "cd apps/web && pnpm lint"
+        types: [file]
+        files: ^apps/web/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+
+      - id: pnpm-format-check
+        name: pnpm format check
+        language: system
+        entry: bash -c "cd apps/web && pnpm format:check"
+        types: [file]
+        files: ^apps/web/.*\.(ts|tsx|js|jsx|json|css)$
+        pass_filenames: false
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions workflow syntax
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.33.0
+    hooks:
+      - id: check-github-workflows

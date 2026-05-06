@@ -1,0 +1,29 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Go
+/tmp/
+*.test
+*.out
+/bin/
+/dist/
+
+# Generated files (do not edit manually)
+internal/gen/
+
+# Node
+node_modules/
+apps/web/.next/
+apps/web/out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,12 @@
+failure-threshold: warning
+
+ignore:
+  # DL3008: pin apt versions, acceptable in dev Dockerfiles, enforce in prod
+  - DL3008
+  # DL3018: pin apk versions, same rationale
+  - DL3018
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - gcr.io

@@ -41,8 +41,8 @@ func (a *Adapter) Send(ctx context.Context, input email.SendInput) (email.SendRe
 		"from":    map[string]string{"email": input.From},
 		"subject": input.Subject,
 		"content": []map[string]string{
-			{"type": "text/html", "value": input.HTML},
 			{"type": "text/plain", "value": input.Text},
+			{"type": "text/html", "value": input.HTML},
 		},
 	})
 

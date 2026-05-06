@@ -497,6 +497,17 @@ components:
           type: string
           format: date-time
 
+    UpdateProviderConnectionRequest:
+      type: object
+      required: [display_name, credentials]
+      properties:
+        display_name:
+          type: string
+        credentials:
+          type: object
+          additionalProperties:
+            type: string
+
     CreateProviderConnectionRequest:
       type: object
       required: [provider_type, channel, display_name, credentials]
@@ -515,7 +526,7 @@ components:
             type: string
           description: >
             Provider-specific credentials.
-            Resend/SendGrid: `api_key` (and optionally `webhook_key`).
+            Resend/SendGrid: `api_key` (and optionally `webhook_key`, `from_email`, `from_name`).
             SMTP: `host`, `port`, `username`, `password` (and optionally `from_email`, `from_name`).
           example:
             api_key: re_123abc
@@ -1381,6 +1392,70 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    put:
+      operationId: updateProviderConnection
+      summary: Update a provider connection's display name and credentials
+      tags: [providers]
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProviderConnectionRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderConnection"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      operationId: setProviderDefault
+      summary: Set a provider connection as the default
+      tags: [providers]
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderConnection"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     delete:
       operationId: deleteProviderConnection
       summary: Delete a provider connection
@@ -1394,6 +1469,12 @@ paths:
       responses:
         "204":
           description: Deleted
+        "400":
+          description: Cannot delete default provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           description: Invalid or missing API key
           content:

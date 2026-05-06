@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -95,28 +96,38 @@ type sendResult struct {
 }
 
 func (h *EmailHandler) send(ctx context.Context, n *db.Notification, d *db.Delivery) (sendResult, error) {
-	// Resolve provider connection.
+	// Resolve provider connection — permanent if missing.
 	conn, err := h.providers.GetDefault(ctx, n.OrganizationID, n.ProjectID, n.EnvironmentID, db.ProviderChannelEmail)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return sendResult{}, fmt.Errorf("no default email provider configured")
+			return sendResult{}, fmt.Errorf("%w: no default email provider configured — add one on the Providers page", asynq.SkipRetry)
 		}
 		return sendResult{}, fmt.Errorf("resolve provider: %w", err)
 	}
 
+	// Bad stored credentials — permanent.
 	provider, err := buildProvider(conn)
 	if err != nil {
-		return sendResult{}, fmt.Errorf("build provider: %w", err)
+		return sendResult{}, fmt.Errorf("%w: invalid provider credentials: %s", asynq.SkipRetry, err)
 	}
 
-	// Render template.
-	input, err := h.buildSendInput(ctx, n)
+	var creds map[string]string
+	_ = json.Unmarshal([]byte(conn.EncryptedConfig), &creds)
+
+	// Render template — permanent if template missing or misconfigured.
+	input, err := h.buildSendInput(ctx, n, creds)
 	if err != nil {
-		return sendResult{}, fmt.Errorf("build send input: %w", err)
+		return sendResult{}, fmt.Errorf("%w: %s", asynq.SkipRetry, err)
 	}
 
 	result, err := provider.Send(ctx, input)
 	if err != nil {
+		// 4xx from the provider = permanent (bad API key, unverified domain, invalid request).
+		// 5xx or network errors = transient, worth retrying.
+		msg := err.Error()
+		if isPermanentProviderError(msg) {
+			return sendResult{}, fmt.Errorf("%w: %s", asynq.SkipRetry, msg)
+		}
 		return sendResult{}, fmt.Errorf("provider send: %w", err)
 	}
 
@@ -126,7 +137,7 @@ func (h *EmailHandler) send(ctx context.Context, n *db.Notification, d *db.Deliv
 	}, nil
 }
 
-func (h *EmailHandler) buildSendInput(ctx context.Context, n *db.Notification) (email.SendInput, error) {
+func (h *EmailHandler) buildSendInput(ctx context.Context, n *db.Notification, creds map[string]string) (email.SendInput, error) {
 	if n.TemplateKey == nil {
 		return email.SendInput{}, fmt.Errorf("notification has no template key")
 	}
@@ -157,9 +168,18 @@ func (h *EmailHandler) buildSendInput(ctx context.Context, n *db.Notification) (
 
 	recipient := strVal(n.RecipientRef)
 
+	from := creds["from_email"]
+	if from == "" {
+		return email.SendInput{}, fmt.Errorf("%w: provider connection is missing 'from_email' — set it on the Providers page", asynq.SkipRetry)
+	}
+	fromName := creds["from_name"]
+	if fromName != "" {
+		from = fmt.Sprintf("%s <%s>", fromName, from)
+	}
+
 	return email.SendInput{
 		To:      recipient,
-		From:    "notifications@potoo.dev",
+		From:    from,
 		Subject: subject,
 		HTML:    htmlBody,
 		Text:    textBody,
@@ -198,6 +218,16 @@ func buildProvider(conn *db.ProviderConnection) (email.Provider, error) {
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", conn.ProviderType)
 	}
+}
+
+// isPermanentProviderError returns true for 4xx provider errors (bad API key,
+// unverified domain, invalid request) that will never succeed on retry.
+func isPermanentProviderError(msg string) bool {
+	return strings.Contains(msg, "error 400") ||
+		strings.Contains(msg, "error 401") ||
+		strings.Contains(msg, "error 403") ||
+		strings.Contains(msg, "error 404") ||
+		strings.Contains(msg, "error 422")
 }
 
 func strVal(s *string) string {

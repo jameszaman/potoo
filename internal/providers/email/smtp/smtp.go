@@ -20,9 +20,6 @@ type Adapter struct {
 }
 
 func New(host string, port int, username, password, fromEmail, fromName string) *Adapter {
-	if fromEmail == "" {
-		fromEmail = username
-	}
 	return &Adapter{
 		host:      host,
 		port:      port,
@@ -88,12 +85,19 @@ func (a *Adapter) Send(ctx context.Context, input email.SendInput) (email.SendRe
 		}
 	}
 
+	// Determine TLS policy based on port:
+	// 465 = implicit TLS (TLSMandatory), 587 = STARTTLS (TLSOpportunistic)
+	tlsPolicy := mail.TLSOpportunistic
+	if a.port == 465 {
+		tlsPolicy = mail.TLSMandatory
+	}
+
 	client, err := mail.NewClient(a.host,
 		mail.WithPort(a.port),
-		mail.WithSMTPAuth(mail.SMTPAuthPlain),
+		mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover),
 		mail.WithUsername(a.username),
 		mail.WithPassword(a.password),
-		mail.WithTLSPortPolicy(mail.TLSMandatory),
+		mail.WithTLSPortPolicy(tlsPolicy),
 	)
 	if err != nil {
 		return email.SendResult{}, fmt.Errorf("smtp: create client: %w", err)

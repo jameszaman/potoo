@@ -9,6 +9,32 @@ import (
 	"context"
 )
 
+const clearDefaultProviders = `-- name: ClearDefaultProviders :exec
+UPDATE provider_connections
+SET is_default = false
+WHERE organization_id = $1
+  AND project_id      = $2
+  AND environment_id  = $3
+  AND channel         = $4
+`
+
+type ClearDefaultProvidersParams struct {
+	OrganizationID string          `db:"organization_id" json:"organization_id"`
+	ProjectID      string          `db:"project_id" json:"project_id"`
+	EnvironmentID  string          `db:"environment_id" json:"environment_id"`
+	Channel        ProviderChannel `db:"channel" json:"channel"`
+}
+
+func (q *Queries) ClearDefaultProviders(ctx context.Context, arg ClearDefaultProvidersParams) error {
+	_, err := q.db.Exec(ctx, clearDefaultProviders,
+		arg.OrganizationID,
+		arg.ProjectID,
+		arg.EnvironmentID,
+		arg.Channel,
+	)
+	return err
+}
+
 const createProviderConnection = `-- name: CreateProviderConnection :one
 INSERT INTO provider_connections (
     id, organization_id, project_id, environment_id,
@@ -218,4 +244,77 @@ func (q *Queries) ListProviderConnections(ctx context.Context, arg ListProviderC
 		return nil, err
 	}
 	return items, nil
+}
+
+const setProviderDefault = `-- name: SetProviderDefault :one
+UPDATE provider_connections
+SET is_default = true
+WHERE id = $1 AND organization_id = $2
+RETURNING id, organization_id, project_id, environment_id, provider_type, channel, display_name, encrypted_config, is_default, is_active, created_at, updated_at
+`
+
+type SetProviderDefaultParams struct {
+	ID             string `db:"id" json:"id"`
+	OrganizationID string `db:"organization_id" json:"organization_id"`
+}
+
+func (q *Queries) SetProviderDefault(ctx context.Context, arg SetProviderDefaultParams) (ProviderConnection, error) {
+	row := q.db.QueryRow(ctx, setProviderDefault, arg.ID, arg.OrganizationID)
+	var i ProviderConnection
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.ProjectID,
+		&i.EnvironmentID,
+		&i.ProviderType,
+		&i.Channel,
+		&i.DisplayName,
+		&i.EncryptedConfig,
+		&i.IsDefault,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateProviderConnection = `-- name: UpdateProviderConnection :one
+UPDATE provider_connections
+SET display_name     = $3,
+    encrypted_config = $4,
+    updated_at       = NOW()
+WHERE id = $1 AND organization_id = $2
+RETURNING id, organization_id, project_id, environment_id, provider_type, channel, display_name, encrypted_config, is_default, is_active, created_at, updated_at
+`
+
+type UpdateProviderConnectionParams struct {
+	ID              string `db:"id" json:"id"`
+	OrganizationID  string `db:"organization_id" json:"organization_id"`
+	DisplayName     string `db:"display_name" json:"display_name"`
+	EncryptedConfig string `db:"encrypted_config" json:"encrypted_config"`
+}
+
+func (q *Queries) UpdateProviderConnection(ctx context.Context, arg UpdateProviderConnectionParams) (ProviderConnection, error) {
+	row := q.db.QueryRow(ctx, updateProviderConnection,
+		arg.ID,
+		arg.OrganizationID,
+		arg.DisplayName,
+		arg.EncryptedConfig,
+	)
+	var i ProviderConnection
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.ProjectID,
+		&i.EnvironmentID,
+		&i.ProviderType,
+		&i.Channel,
+		&i.DisplayName,
+		&i.EncryptedConfig,
+		&i.IsDefault,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

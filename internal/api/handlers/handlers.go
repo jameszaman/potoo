@@ -420,15 +420,78 @@ func (h *Handlers) GetProviderConnection(ctx context.Context, req api.GetProvide
 	return api.GetProviderConnection200JSONResponse(dbProviderToAPI(*row)), nil
 }
 
+func (h *Handlers) UpdateProviderConnection(ctx context.Context, req api.UpdateProviderConnectionRequestObject) (api.UpdateProviderConnectionResponseObject, error) {
+	tenant, ok := auth.TenantFromContext(ctx)
+	if !ok {
+		return api.UpdateProviderConnection404JSONResponse(notFoundError(ctx)), nil
+	}
+
+	// Fetch existing connection to merge credentials.
+	existing, err := h.providers.Get(ctx, req.ConnectionId, tenant.OrganizationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.UpdateProviderConnection404JSONResponse(notFoundError(ctx)), nil
+		}
+		return nil, err
+	}
+
+	// Merge new credentials over existing ones so omitted fields (e.g. api_key) are preserved.
+	var merged map[string]string
+	_ = json.Unmarshal([]byte(existing.EncryptedConfig), &merged)
+	if merged == nil {
+		merged = map[string]string{}
+	}
+	for k, v := range req.Body.Credentials {
+		if v != "" {
+			merged[k] = v
+		}
+	}
+	credsJSON, err := json.Marshal(merged)
+	if err != nil {
+		return api.UpdateProviderConnection404JSONResponse(errBody(ctx, "validation_failed", "invalid credentials")), nil
+	}
+
+	row, err := h.providers.Update(ctx, req.ConnectionId, tenant.OrganizationID, req.Body.DisplayName, string(credsJSON))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.UpdateProviderConnection404JSONResponse(notFoundError(ctx)), nil
+		}
+		return nil, err
+	}
+	return api.UpdateProviderConnection200JSONResponse(dbProviderToAPI(*row)), nil
+}
+
+func (h *Handlers) SetProviderDefault(ctx context.Context, req api.SetProviderDefaultRequestObject) (api.SetProviderDefaultResponseObject, error) {
+	tenant, ok := auth.TenantFromContext(ctx)
+	if !ok {
+		return api.SetProviderDefault404JSONResponse(notFoundError(ctx)), nil
+	}
+	row, err := h.providers.SetDefault(ctx, req.ConnectionId, tenant.OrganizationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.SetProviderDefault404JSONResponse(notFoundError(ctx)), nil
+		}
+		return nil, err
+	}
+	return api.SetProviderDefault200JSONResponse(dbProviderToAPI(*row)), nil
+}
+
 func (h *Handlers) DeleteProviderConnection(ctx context.Context, req api.DeleteProviderConnectionRequestObject) (api.DeleteProviderConnectionResponseObject, error) {
 	tenant, ok := auth.TenantFromContext(ctx)
 	if !ok {
 		return api.DeleteProviderConnection404JSONResponse(notFoundError(ctx)), nil
 	}
-	if err := h.providers.Delete(ctx, req.ConnectionId, tenant.OrganizationID); err != nil {
+	conn, err := h.providers.Get(ctx, req.ConnectionId, tenant.OrganizationID)
+	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return api.DeleteProviderConnection404JSONResponse(notFoundError(ctx)), nil
 		}
+		return nil, err
+	}
+	if conn.IsDefault {
+		return api.DeleteProviderConnection400JSONResponse(errBody(ctx, "cannot_delete_default", "Cannot delete the default provider. Set another provider as default first.")), nil
+	}
+	if err := h.providers.Delete(ctx, req.ConnectionId, tenant.OrganizationID); err != nil {
 		return nil, err
 	}
 	return api.DeleteProviderConnection204Response{}, nil

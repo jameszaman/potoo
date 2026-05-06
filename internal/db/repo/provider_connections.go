@@ -10,11 +10,12 @@ import (
 )
 
 type ProviderConnectionRepo struct {
-	q *db.Queries
+	pool *pgxpool.Pool
+	q    *db.Queries
 }
 
 func NewProviderConnectionRepo(pool *pgxpool.Pool) *ProviderConnectionRepo {
-	return &ProviderConnectionRepo{q: db.New(pool)}
+	return &ProviderConnectionRepo{pool: pool, q: db.New(pool)}
 }
 
 type CreateProviderConnectionParams struct {
@@ -29,7 +30,24 @@ type CreateProviderConnectionParams struct {
 }
 
 func (r *ProviderConnectionRepo) Create(ctx context.Context, p CreateProviderConnectionParams) (*db.ProviderConnection, error) {
-	row, err := r.q.CreateProviderConnection(ctx, db.CreateProviderConnectionParams{
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	qtx := r.q.WithTx(tx)
+	if p.IsDefault {
+		if err := qtx.ClearDefaultProviders(ctx, db.ClearDefaultProvidersParams{
+			OrganizationID: p.OrganizationID,
+			ProjectID:      p.ProjectID,
+			EnvironmentID:  p.EnvironmentID,
+			Channel:        p.Channel,
+		}); err != nil {
+			return nil, fmt.Errorf("clear defaults: %w", err)
+		}
+	}
+	row, err := qtx.CreateProviderConnection(ctx, db.CreateProviderConnectionParams{
 		ID:              newID(),
 		OrganizationID:  p.OrganizationID,
 		ProjectID:       p.ProjectID,
@@ -42,6 +60,9 @@ func (r *ProviderConnectionRepo) Create(ctx context.Context, p CreateProviderCon
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create provider connection: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
 	}
 	return &row, nil
 }
@@ -98,4 +119,56 @@ func (r *ProviderConnectionRepo) GetAnyByType(ctx context.Context, providerType 
 		return nil, fmt.Errorf("get provider by type: %w", err)
 	}
 	return &row, nil
+}
+
+func (r *ProviderConnectionRepo) Update(ctx context.Context, id, orgID, displayName, encryptedConfig string) (*db.ProviderConnection, error) {
+	row, err := r.q.UpdateProviderConnection(ctx, db.UpdateProviderConnectionParams{
+		ID:              id,
+		OrganizationID:  orgID,
+		DisplayName:     displayName,
+		EncryptedConfig: encryptedConfig,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("update provider connection: %w", err)
+	}
+	return &row, nil
+}
+
+// SetDefault clears is_default on all connections for the same org/project/env/channel
+// then sets it on the given connection, atomically.
+func (r *ProviderConnectionRepo) SetDefault(ctx context.Context, id, orgID string) (*db.ProviderConnection, error) {
+	conn, err := r.q.GetProviderConnection(ctx, db.GetProviderConnectionParams{
+		ID:             id,
+		OrganizationID: orgID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get provider connection: %w", err)
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	qtx := r.q.WithTx(tx)
+	if err := qtx.ClearDefaultProviders(ctx, db.ClearDefaultProvidersParams{
+		OrganizationID: orgID,
+		ProjectID:      conn.ProjectID,
+		EnvironmentID:  conn.EnvironmentID,
+		Channel:        conn.Channel,
+	}); err != nil {
+		return nil, fmt.Errorf("clear defaults: %w", err)
+	}
+	updated, err := qtx.SetProviderDefault(ctx, db.SetProviderDefaultParams{
+		ID:             id,
+		OrganizationID: orgID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("set default: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
+	}
+	return &updated, nil
 }

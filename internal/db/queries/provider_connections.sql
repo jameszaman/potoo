@@ -34,3 +34,25 @@ SELECT * FROM provider_connections
 WHERE provider_type = $1
   AND is_active     = true
 LIMIT 1;
+
+-- name: UpdateProviderConnection :one
+UPDATE provider_connections
+SET display_name     = $3,
+    encrypted_config = $4,
+    updated_at       = NOW()
+WHERE id = $1 AND organization_id = $2
+RETURNING *;
+
+-- name: ClearDefaultProviders :exec
+UPDATE provider_connections
+SET is_default = false
+WHERE organization_id = $1
+  AND project_id      = $2
+  AND environment_id  = $3
+  AND channel         = $4;
+
+-- name: SetProviderDefault :one
+UPDATE provider_connections
+SET is_default = true
+WHERE id = $1 AND organization_id = $2
+RETURNING *;

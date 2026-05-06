@@ -22,7 +22,7 @@ func NewSendEmailTask(p SendEmailPayload) (*asynq.Task, error) {
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
-	return asynq.NewTask(TypeSendEmail, body), nil
+	return asynq.NewTask(TypeSendEmail, body, asynq.MaxRetry(3)), nil
 }
 
 func ParseSendEmailPayload(t *asynq.Task) (SendEmailPayload, error) {

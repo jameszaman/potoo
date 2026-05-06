@@ -150,6 +150,104 @@ func (q *Queries) GetDelivery(ctx context.Context, arg GetDeliveryParams) (Deliv
 	return i, err
 }
 
+const getDeliveryByProviderMessageID = `-- name: GetDeliveryByProviderMessageID :one
+SELECT id, notification_id, organization_id, project_id, environment_id, channel, provider_type, provider_message_id, status, attempt_count, last_error_code, last_error_message, scheduled_at, sent_at, delivered_at, failed_at, created_at, updated_at FROM deliveries
+WHERE provider_message_id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetDeliveryByProviderMessageID(ctx context.Context, providerMessageID *string) (Delivery, error) {
+	row := q.db.QueryRow(ctx, getDeliveryByProviderMessageID, providerMessageID)
+	var i Delivery
+	err := row.Scan(
+		&i.ID,
+		&i.NotificationID,
+		&i.OrganizationID,
+		&i.ProjectID,
+		&i.EnvironmentID,
+		&i.Channel,
+		&i.ProviderType,
+		&i.ProviderMessageID,
+		&i.Status,
+		&i.AttemptCount,
+		&i.LastErrorCode,
+		&i.LastErrorMessage,
+		&i.ScheduledAt,
+		&i.SentAt,
+		&i.DeliveredAt,
+		&i.FailedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateDeliveryBounced = `-- name: UpdateDeliveryBounced :one
+UPDATE deliveries
+SET status = 'bounced', failed_at = NOW(), updated_at = NOW()
+WHERE id = $1
+RETURNING id, notification_id, organization_id, project_id, environment_id, channel, provider_type, provider_message_id, status, attempt_count, last_error_code, last_error_message, scheduled_at, sent_at, delivered_at, failed_at, created_at, updated_at
+`
+
+func (q *Queries) UpdateDeliveryBounced(ctx context.Context, id string) (Delivery, error) {
+	row := q.db.QueryRow(ctx, updateDeliveryBounced, id)
+	var i Delivery
+	err := row.Scan(
+		&i.ID,
+		&i.NotificationID,
+		&i.OrganizationID,
+		&i.ProjectID,
+		&i.EnvironmentID,
+		&i.Channel,
+		&i.ProviderType,
+		&i.ProviderMessageID,
+		&i.Status,
+		&i.AttemptCount,
+		&i.LastErrorCode,
+		&i.LastErrorMessage,
+		&i.ScheduledAt,
+		&i.SentAt,
+		&i.DeliveredAt,
+		&i.FailedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateDeliveryDelivered = `-- name: UpdateDeliveryDelivered :one
+UPDATE deliveries
+SET status = 'delivered', delivered_at = NOW(), updated_at = NOW()
+WHERE id = $1
+RETURNING id, notification_id, organization_id, project_id, environment_id, channel, provider_type, provider_message_id, status, attempt_count, last_error_code, last_error_message, scheduled_at, sent_at, delivered_at, failed_at, created_at, updated_at
+`
+
+func (q *Queries) UpdateDeliveryDelivered(ctx context.Context, id string) (Delivery, error) {
+	row := q.db.QueryRow(ctx, updateDeliveryDelivered, id)
+	var i Delivery
+	err := row.Scan(
+		&i.ID,
+		&i.NotificationID,
+		&i.OrganizationID,
+		&i.ProjectID,
+		&i.EnvironmentID,
+		&i.Channel,
+		&i.ProviderType,
+		&i.ProviderMessageID,
+		&i.Status,
+		&i.AttemptCount,
+		&i.LastErrorCode,
+		&i.LastErrorMessage,
+		&i.ScheduledAt,
+		&i.SentAt,
+		&i.DeliveredAt,
+		&i.FailedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateDeliverySent = `-- name: UpdateDeliverySent :one
 UPDATE deliveries
 SET

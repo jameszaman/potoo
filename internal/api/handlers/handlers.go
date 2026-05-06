@@ -176,6 +176,15 @@ func (h *Handlers) GetDeliveryEvents(ctx context.Context, req api.GetDeliveryEve
 	return api.GetDeliveryEvents200JSONResponse{Data: out}, nil
 }
 
+// --- Webhooks ---
+
+// IngestEmailWebhook satisfies the strict server interface but is never called —
+// the real handler (IngestEmailWebhookHTTP) is registered directly on the router
+// so it can read raw bytes for signature verification.
+func (h *Handlers) IngestEmailWebhook(_ context.Context, _ api.IngestEmailWebhookRequestObject) (api.IngestEmailWebhookResponseObject, error) {
+	return api.IngestEmailWebhook200Response{}, nil
+}
+
 // --- Templates ---
 
 func (h *Handlers) ListTemplates(ctx context.Context, _ api.ListTemplatesRequestObject) (api.ListTemplatesResponseObject, error) {

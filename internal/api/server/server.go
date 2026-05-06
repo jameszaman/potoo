@@ -29,6 +29,9 @@ func New(pool *pgxpool.Pool, q *queue.Client) http.Handler {
 
 	h := handlers.New(pool, q)
 
+	// Public webhook routes — no auth, raw body needed for signature verification.
+	r.Post("/v1/webhooks/email/{provider}", h.IngestEmailWebhookHTTP)
+
 	// All API routes are registered once. Auth middleware skips /v1/health.
 	r.Group(func(r chi.Router) {
 		r.Use(auth.AuthenticateExcept("/v1/health")(pool))

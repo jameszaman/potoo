@@ -33,3 +33,20 @@ SET
     updated_at          = NOW()
 WHERE id = $1
 RETURNING *;
+
+-- name: GetDeliveryByProviderMessageID :one
+SELECT * FROM deliveries
+WHERE provider_message_id = $1
+LIMIT 1;
+
+-- name: UpdateDeliveryDelivered :one
+UPDATE deliveries
+SET status = 'delivered', delivered_at = NOW(), updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateDeliveryBounced :one
+UPDATE deliveries
+SET status = 'bounced', failed_at = NOW(), updated_at = NOW()
+WHERE id = $1
+RETURNING *;

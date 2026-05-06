@@ -28,3 +28,9 @@ WHERE organization_id = $1
   AND is_default      = true
   AND is_active       = true
 LIMIT 1;
+
+-- name: GetProviderConnectionByType :one
+SELECT * FROM provider_connections
+WHERE provider_type = $1
+  AND is_active     = true
+LIMIT 1;

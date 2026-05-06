@@ -91,3 +91,11 @@ func (r *ProviderConnectionRepo) GetDefault(ctx context.Context, orgID, projectI
 	}
 	return &row, nil
 }
+
+func (r *ProviderConnectionRepo) GetAnyByType(ctx context.Context, providerType db.ProviderType) (*db.ProviderConnection, error) {
+	row, err := r.q.GetProviderConnectionByType(ctx, providerType)
+	if err != nil {
+		return nil, fmt.Errorf("get provider by type: %w", err)
+	}
+	return &row, nil
+}

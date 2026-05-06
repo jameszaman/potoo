@@ -148,6 +148,33 @@ func (q *Queries) GetProviderConnection(ctx context.Context, arg GetProviderConn
 	return i, err
 }
 
+const getProviderConnectionByType = `-- name: GetProviderConnectionByType :one
+SELECT id, organization_id, project_id, environment_id, provider_type, channel, display_name, encrypted_config, is_default, is_active, created_at, updated_at FROM provider_connections
+WHERE provider_type = $1
+  AND is_active     = true
+LIMIT 1
+`
+
+func (q *Queries) GetProviderConnectionByType(ctx context.Context, providerType ProviderType) (ProviderConnection, error) {
+	row := q.db.QueryRow(ctx, getProviderConnectionByType, providerType)
+	var i ProviderConnection
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.ProjectID,
+		&i.EnvironmentID,
+		&i.ProviderType,
+		&i.Channel,
+		&i.DisplayName,
+		&i.EncryptedConfig,
+		&i.IsDefault,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listProviderConnections = `-- name: ListProviderConnections :many
 SELECT id, organization_id, project_id, environment_id, provider_type, channel, display_name, encrypted_config, is_default, is_active, created_at, updated_at FROM provider_connections
 WHERE organization_id = $1 AND project_id = $2 AND environment_id = $3

@@ -77,3 +77,27 @@ func (r *DeliveryRepo) MarkSent(ctx context.Context, id string, providerType, pr
 	}
 	return &row, nil
 }
+
+func (r *DeliveryRepo) GetByProviderMessageID(ctx context.Context, providerMessageID string) (*db.Delivery, error) {
+	row, err := r.q.GetDeliveryByProviderMessageID(ctx, &providerMessageID)
+	if err != nil {
+		return nil, fmt.Errorf("get delivery by provider message id: %w", err)
+	}
+	return &row, nil
+}
+
+func (r *DeliveryRepo) MarkDelivered(ctx context.Context, id string) (*db.Delivery, error) {
+	row, err := r.q.UpdateDeliveryDelivered(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("mark delivery delivered: %w", err)
+	}
+	return &row, nil
+}
+
+func (r *DeliveryRepo) MarkBounced(ctx context.Context, id string) (*db.Delivery, error) {
+	row, err := r.q.UpdateDeliveryBounced(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("mark delivery bounced: %w", err)
+	}
+	return &row, nil
+}

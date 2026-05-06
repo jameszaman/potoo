@@ -27,6 +27,8 @@ tags:
     description: Template management and rendering
   - name: providers
     description: Provider connection management
+  - name: webhooks
+    description: Inbound provider webhook endpoints (no auth required)
 
 components:
   securitySchemes:
@@ -923,6 +925,41 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           description: Delivery not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/webhooks/email/{provider}:
+    post:
+      operationId: ingestEmailWebhook
+      summary: Receive email provider webhook
+      description: |
+        Receives delivery status events from an email provider (Resend, SendGrid).
+        This endpoint is public — no API key required. Signature verification is
+        performed using the webhook key stored on the provider connection.
+      tags: [webhooks]
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [resend, sendgrid]
+          example: resend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Webhook accepted
+        "400":
+          description: Invalid payload or signature
           content:
             application/json:
               schema:

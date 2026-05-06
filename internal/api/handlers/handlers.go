@@ -15,18 +15,27 @@ import (
 	"github.com/notifylayer/notifylayer/internal/db/repo"
 	"github.com/notifylayer/notifylayer/internal/db/sqlc"
 	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
+	"github.com/notifylayer/notifylayer/internal/queue"
 	tmpl "github.com/notifylayer/notifylayer/internal/template"
 )
 
 type Handlers struct {
-	templates   *repo.TemplateRepo
-	providers   *repo.ProviderConnectionRepo
+	templates     *repo.TemplateRepo
+	providers     *repo.ProviderConnectionRepo
+	notifications *repo.NotificationRepo
+	deliveries    *repo.DeliveryRepo
+	events        *repo.DeliveryEventRepo
+	queue         *queue.Client
 }
 
-func New(pool *pgxpool.Pool) *Handlers {
+func New(pool *pgxpool.Pool, q *queue.Client) *Handlers {
 	return &Handlers{
-		templates: repo.NewTemplateRepo(pool),
-		providers: repo.NewProviderConnectionRepo(pool),
+		templates:     repo.NewTemplateRepo(pool),
+		providers:     repo.NewProviderConnectionRepo(pool),
+		notifications: repo.NewNotificationRepo(pool),
+		deliveries:    repo.NewDeliveryRepo(pool),
+		events:        repo.NewDeliveryEventRepo(pool),
+		queue:         q,
 	}
 }
 
@@ -38,34 +47,133 @@ func (h *Handlers) GetHealth(_ context.Context, _ api.GetHealthRequestObject) (a
 
 // --- Notifications (stub — implemented in Phase 6) ---
 
-func (h *Handlers) SendNotification(ctx context.Context, _ api.SendNotificationRequestObject) (api.SendNotificationResponseObject, error) {
-	if _, ok := auth.TenantFromContext(ctx); !ok {
+func (h *Handlers) SendNotification(ctx context.Context, req api.SendNotificationRequestObject) (api.SendNotificationResponseObject, error) {
+	tenant, ok := auth.TenantFromContext(ctx)
+	if !ok {
 		return api.SendNotification400JSONResponse(unauthorizedError(ctx)), nil
 	}
-	return api.SendNotification202JSONResponse{}, nil
+
+	body := req.Body
+	channel := db.NotificationChannel(body.Channel)
+
+	var templateKey *string
+	if body.Template.Key != "" {
+		templateKey = &body.Template.Key
+	}
+
+	var recipientRef *string
+	if body.Recipient.ExternalId != nil {
+		recipientRef = body.Recipient.ExternalId
+	} else if body.Recipient.Email != nil {
+		s := string(*body.Recipient.Email)
+		recipientRef = &s
+	}
+
+	meta := map[string]string{}
+	if body.Metadata != nil {
+		meta = *body.Metadata
+	}
+	// Merge template data into metadata so the worker can render it.
+	if body.Template.Data != nil {
+		for k, v := range *body.Template.Data {
+			if s, ok := v.(string); ok {
+				meta[k] = s
+			}
+		}
+	}
+
+	notification, err := h.notifications.Create(ctx, repo.CreateNotificationParams{
+		OrganizationID: tenant.OrganizationID,
+		ProjectID:      tenant.ProjectID,
+		EnvironmentID:  tenant.EnvironmentID,
+		Channel:        channel,
+		TemplateKey:    templateKey,
+		RecipientRef:   recipientRef,
+		Metadata:       meta,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	delivery, err := h.deliveries.Create(ctx, notification.ID, tenant.OrganizationID, tenant.ProjectID, tenant.EnvironmentID, channel)
+	if err != nil {
+		return nil, err
+	}
+
+	task, err := queue.NewSendEmailTask(queue.SendEmailPayload{
+		NotificationID: notification.ID,
+		DeliveryID:     delivery.ID,
+		OrganizationID: tenant.OrganizationID,
+		ProjectID:      tenant.ProjectID,
+		EnvironmentID:  tenant.EnvironmentID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := h.queue.Enqueue(ctx, task); err != nil {
+		return nil, err
+	}
+
+	return api.SendNotification202JSONResponse{
+		NotificationId: notification.ID,
+		DeliveryId:     delivery.ID,
+		Status:         api.Queued,
+	}, nil
 }
 
-func (h *Handlers) GetNotification(ctx context.Context, _ api.GetNotificationRequestObject) (api.GetNotificationResponseObject, error) {
-	if _, ok := auth.TenantFromContext(ctx); !ok {
+func (h *Handlers) GetNotification(ctx context.Context, req api.GetNotificationRequestObject) (api.GetNotificationResponseObject, error) {
+	tenant, ok := auth.TenantFromContext(ctx)
+	if !ok {
 		return api.GetNotification404JSONResponse(notFoundError(ctx)), nil
 	}
-	return api.GetNotification404JSONResponse(notImplError(ctx)), nil
+	row, err := h.notifications.Get(ctx, req.NotificationId, tenant.OrganizationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.GetNotification404JSONResponse(notFoundError(ctx)), nil
+		}
+		return nil, err
+	}
+	return api.GetNotification200JSONResponse(dbNotificationToAPI(*row)), nil
 }
 
-// --- Deliveries (stub — implemented in Phase 6) ---
+// --- Deliveries ---
 
-func (h *Handlers) GetDelivery(ctx context.Context, _ api.GetDeliveryRequestObject) (api.GetDeliveryResponseObject, error) {
-	if _, ok := auth.TenantFromContext(ctx); !ok {
+func (h *Handlers) GetDelivery(ctx context.Context, req api.GetDeliveryRequestObject) (api.GetDeliveryResponseObject, error) {
+	tenant, ok := auth.TenantFromContext(ctx)
+	if !ok {
 		return api.GetDelivery404JSONResponse(notFoundError(ctx)), nil
 	}
-	return api.GetDelivery404JSONResponse(notImplError(ctx)), nil
+	row, err := h.deliveries.Get(ctx, req.DeliveryId, tenant.OrganizationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.GetDelivery404JSONResponse(notFoundError(ctx)), nil
+		}
+		return nil, err
+	}
+	return api.GetDelivery200JSONResponse(dbDeliveryToAPI(*row)), nil
 }
 
-func (h *Handlers) GetDeliveryEvents(ctx context.Context, _ api.GetDeliveryEventsRequestObject) (api.GetDeliveryEventsResponseObject, error) {
-	if _, ok := auth.TenantFromContext(ctx); !ok {
+func (h *Handlers) GetDeliveryEvents(ctx context.Context, req api.GetDeliveryEventsRequestObject) (api.GetDeliveryEventsResponseObject, error) {
+	tenant, ok := auth.TenantFromContext(ctx)
+	if !ok {
 		return api.GetDeliveryEvents404JSONResponse(notFoundError(ctx)), nil
 	}
-	return api.GetDeliveryEvents404JSONResponse(notImplError(ctx)), nil
+	// Verify the delivery belongs to this tenant.
+	if _, err := h.deliveries.Get(ctx, req.DeliveryId, tenant.OrganizationID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return api.GetDeliveryEvents404JSONResponse(notFoundError(ctx)), nil
+		}
+		return nil, err
+	}
+	rows, err := h.events.List(ctx, req.DeliveryId)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]api.DeliveryEvent, len(rows))
+	for i, r := range rows {
+		out[i] = dbDeliveryEventToAPI(r)
+	}
+	return api.GetDeliveryEvents200JSONResponse{Data: out}, nil
 }
 
 // --- Templates ---
@@ -397,6 +505,69 @@ func notFoundError(ctx context.Context) api.Error {
 
 func notImplError(ctx context.Context) api.Error {
 	return errBody(ctx, "not_implemented", "Not implemented")
+}
+
+func dbNotificationToAPI(n db.Notification) api.Notification {
+	var meta map[string]string
+	if len(n.Metadata) > 0 {
+		_ = json.Unmarshal(n.Metadata, &meta)
+	}
+	out := api.Notification{
+		Id:          n.ID,
+		Channel:     string(n.Channel),
+		Status:      api.NotificationStatus(n.Status),
+		TemplateKey: n.TemplateKey,
+		RecipientRef: n.RecipientRef,
+		CreatedAt:   n.CreatedAt.Time,
+	}
+	if meta != nil {
+		out.Metadata = &meta
+	}
+	if n.UpdatedAt.Valid {
+		out.UpdatedAt = &n.UpdatedAt.Time
+	}
+	return out
+}
+
+func dbDeliveryToAPI(d db.Delivery) api.Delivery {
+	out := api.Delivery{
+		Id:               d.ID,
+		NotificationId:   d.NotificationID,
+		Channel:          string(d.Channel),
+		Status:           api.NotificationStatus(d.Status),
+		AttemptCount:     int(d.AttemptCount),
+		ProviderType:     d.ProviderType,
+		ProviderMessageId: d.ProviderMessageID,
+		LastErrorCode:    d.LastErrorCode,
+		LastErrorMessage: d.LastErrorMessage,
+		CreatedAt:        d.CreatedAt.Time,
+	}
+	if d.SentAt.Valid {
+		out.SentAt = &d.SentAt.Time
+	}
+	if d.DeliveredAt.Valid {
+		out.DeliveredAt = &d.DeliveredAt.Time
+	}
+	if d.FailedAt.Valid {
+		out.FailedAt = &d.FailedAt.Time
+	}
+	if d.UpdatedAt.Valid {
+		out.UpdatedAt = &d.UpdatedAt.Time
+	}
+	return out
+}
+
+func dbDeliveryEventToAPI(e db.DeliveryEvent) api.DeliveryEvent {
+	out := api.DeliveryEvent{
+		Id:              e.ID,
+		DeliveryId:      e.DeliveryID,
+		EventType:       api.DeliveryEventEventType(e.EventType),
+		ProviderType:    e.ProviderType,
+		ProviderEventId: e.ProviderEventID,
+		OccurredAt:      e.OccurredAt.Time,
+		CreatedAt:       e.CreatedAt.Time,
+	}
+	return out
 }
 
 // compile-time interface check

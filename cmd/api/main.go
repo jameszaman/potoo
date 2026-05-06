@@ -12,12 +12,15 @@ import (
 
 	"github.com/notifylayer/notifylayer/internal/api/server"
 	"github.com/notifylayer/notifylayer/internal/db"
+	"github.com/notifylayer/notifylayer/internal/queue"
 )
 
 func main() {
 	ctx := context.Background()
 
 	dsn := envOr("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/notify?sslmode=disable")
+	redisAddr := envOr("REDIS_ADDR", "localhost:6379")
+
 	pool, err := db.Connect(ctx, dsn)
 	if err != nil {
 		slog.Error("database connection failed", "err", err)
@@ -25,10 +28,13 @@ func main() {
 	}
 	defer pool.Close()
 
+	q := queue.NewClient(redisAddr)
+	defer q.Close() //nolint:errcheck
+
 	addr := envOr("API_ADDR", ":8080")
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      server.New(pool),
+		Handler:      server.New(pool, q),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,

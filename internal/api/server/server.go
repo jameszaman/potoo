@@ -12,9 +12,10 @@ import (
 	"github.com/notifylayer/notifylayer/internal/api/middleware"
 	"github.com/notifylayer/notifylayer/internal/auth"
 	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
+	"github.com/notifylayer/notifylayer/internal/queue"
 )
 
-func New(pool *pgxpool.Pool) http.Handler {
+func New(pool *pgxpool.Pool, q *queue.Client) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimiddleware.RealIP)
@@ -26,7 +27,7 @@ func New(pool *pgxpool.Pool) http.Handler {
 	r.Get("/docs/", swaggerUI)
 	r.Get("/docs/openapi.json", serveSpec)
 
-	h := handlers.New(pool)
+	h := handlers.New(pool, q)
 
 	// All API routes are registered once. Auth middleware skips /v1/health.
 	r.Group(func(r chi.Router) {

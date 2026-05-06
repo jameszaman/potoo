@@ -332,6 +332,7 @@ const (
 	ProviderTypeSes      ProviderType = "ses"
 	ProviderTypeTwilio   ProviderType = "twilio"
 	ProviderTypeFcm      ProviderType = "fcm"
+	ProviderTypeSmtp     ProviderType = "smtp"
 )
 
 func (e *ProviderType) Scan(src interface{}) error {

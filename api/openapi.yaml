@@ -471,7 +471,7 @@ components:
 
     ProviderType:
       type: string
-      enum: [resend, sendgrid, ses, twilio, fcm]
+      enum: [resend, sendgrid, ses, twilio, fcm, smtp]
 
     ProviderConnection:
       type: object
@@ -513,7 +513,10 @@ components:
           type: object
           additionalProperties:
             type: string
-          description: Provider-specific credentials. For Resend and SendGrid, provide `api_key`.
+          description: >
+            Provider-specific credentials.
+            Resend/SendGrid: `api_key` (and optionally `webhook_key`).
+            SMTP: `host`, `port`, `username`, `password` (and optionally `from_email`, `from_name`).
           example:
             api_key: re_123abc
         is_default:

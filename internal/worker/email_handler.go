@@ -17,6 +17,7 @@ import (
 	"github.com/potoo/potoo/internal/providers/email"
 	"github.com/potoo/potoo/internal/providers/email/resend"
 	"github.com/potoo/potoo/internal/providers/email/sendgrid"
+	emailsmtp "github.com/potoo/potoo/internal/providers/email/smtp"
 	"github.com/potoo/potoo/internal/queue"
 	tmpl "github.com/potoo/potoo/internal/template"
 )
@@ -192,6 +193,8 @@ func buildProvider(conn *db.ProviderConnection) (email.Provider, error) {
 		return resend.New(apiKey, webhookKey), nil
 	case db.ProviderTypeSendgrid:
 		return sendgrid.New(apiKey, webhookKey), nil
+	case db.ProviderTypeSmtp:
+		return emailsmtp.NewFromCreds(creds)
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", conn.ProviderType)
 	}

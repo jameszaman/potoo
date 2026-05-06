@@ -11,14 +11,24 @@ import (
 	"time"
 
 	"github.com/notifylayer/notifylayer/internal/api/server"
+	"github.com/notifylayer/notifylayer/internal/db"
 )
 
 func main() {
-	addr := envOr("API_ADDR", ":8080")
+	ctx := context.Background()
 
+	dsn := envOr("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/notify?sslmode=disable")
+	pool, err := db.Connect(ctx, dsn)
+	if err != nil {
+		slog.Error("database connection failed", "err", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	addr := envOr("API_ADDR", ":8080")
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      server.New(),
+		Handler:      server.New(pool),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -39,7 +49,6 @@ func main() {
 	slog.Info("shutting down")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("shutdown error", "err", err)
 	}

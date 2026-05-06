@@ -1,5 +1,8 @@
 .PHONY: setup dev api web worker db-up db-down migrate generate lint test test-integration fmt clean hooks
 
+-include .env
+export
+
 setup:
 	go mod download
 	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest

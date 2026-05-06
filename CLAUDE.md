@@ -97,14 +97,15 @@ Customer apps call `POST /v1/notifications`. The Go API authenticates the API ke
 
 **Phase 1 complete.** `GET /v1/health` returns 200 and `GET /docs` loads Swagger UI.
 
-**Phase 2 complete.** Migrations, sqlc config, generated queries, and repository layer are in place.
+**Phase 3 complete.** Auth middleware hashes the Bearer token with SHA-256, looks it up in `api_keys`, and stores the resolved tenant (org/project/env) in request context. `/v1/health` is public; all other routes require a valid key.
 
-**Next: Phase 3 — Authentication and tenant isolation.**
+**Next: Phase 4 — Templates.**
 
 Tasks:
-1. API key generation — hash with bcrypt, store prefix + hash, never raw key.
-2. Auth middleware — extract Bearer token, hash it, look up `api_keys`, resolve org/project/environment into request context.
-3. Clerk webhook handler — `POST /v1/webhooks/clerk` — bootstrap org + project records on `user.created`.
-4. Reject unauthenticated requests with `401`. Reject cross-tenant access with `404`.
+1. Add `templates` and `template_versions` migrations.
+2. Add sqlc queries and regenerate.
+3. Template CRUD service and handlers.
+4. Minimal `{{variable}}` renderer.
+5. Variable schema validation.
 
-Done when authenticated requests carry tenant context and unauthenticated/cross-tenant requests fail.
+Done when a template can be created, a version activated, and rendered with test data via the API.

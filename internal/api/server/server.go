@@ -6,13 +6,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
 	"github.com/notifylayer/notifylayer/internal/api/handlers"
 	"github.com/notifylayer/notifylayer/internal/api/middleware"
+	"github.com/notifylayer/notifylayer/internal/auth"
+	api "github.com/notifylayer/notifylayer/internal/gen/openapi"
 )
 
-func New() http.Handler {
+func New(pool *pgxpool.Pool) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimiddleware.RealIP)
@@ -24,8 +26,15 @@ func New() http.Handler {
 	r.Get("/docs/", swaggerUI)
 	r.Get("/docs/openapi.json", serveSpec)
 
-	h := handlers.New()
-	api.HandlerFromMux(api.NewStrictHandler(h, nil), r)
+	h := handlers.New(pool)
+
+	// All API routes are registered once. Auth middleware skips /v1/health.
+	r.Group(func(r chi.Router) {
+		r.Use(auth.AuthenticateExcept("/v1/health")(pool))
+		api.HandlerWithOptions(api.NewStrictHandler(h, nil), api.ChiServerOptions{
+			BaseRouter: r,
+		})
+	})
 
 	return r
 }

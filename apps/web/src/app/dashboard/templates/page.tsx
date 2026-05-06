@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { Template } from "@/lib/types";
 import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 import NoApiKey, { isApiKeyError } from "@/components/NoApiKey";
 
 export default function TemplatesPage() {
+  const router = useRouter();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const [showNew, setShowNew] = useState(false);
-  const [newForm, setNewForm] = useState({ key: "", name: "", channel: "email" });
   const [versionForm, setVersionForm] = useState<Record<string, { subject: string; html_body: string; text_body: string }>>({});
   const [saving, setSaving] = useState(false);
 
@@ -29,21 +29,6 @@ export default function TemplatesPage() {
   };
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleCreateTemplate = async () => {
-    setSaving(true);
-    setError("");
-    try {
-      await apiFetch("/v1/templates", { method: "POST", body: JSON.stringify(newForm) });
-      setShowNew(false);
-      setNewForm({ key: "", name: "", channel: "email" });
-      await load();
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleCreateVersion = async (templateKey: string) => {
     const f = versionForm[templateKey];
@@ -76,7 +61,7 @@ export default function TemplatesPage() {
           <p className="text-sm text-gray-500">Create and manage notification templates.</p>
         </div>
         <button
-          onClick={() => setShowNew(true)}
+          onClick={() => router.push("/dashboard/templates/new")}
           className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-medium px-3 py-2 rounded-md hover:bg-gray-700 transition-colors"
         >
           <Plus size={14} /> New template
@@ -84,44 +69,6 @@ export default function TemplatesPage() {
       </div>
 
       {error && (isApiKeyError(error) ? <NoApiKey /> : <p className="text-sm text-red-600 mb-4">{error}</p>)}
-
-      {showNew && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
-          <h2 className="text-sm font-semibold mb-4">New template</h2>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Key</label>
-              <input
-                value={newForm.key}
-                onChange={(e) => setNewForm({ ...newForm, key: e.target.value })}
-                placeholder="welcome_email"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
-              <input
-                value={newForm.name}
-                onChange={(e) => setNewForm({ ...newForm, name: e.target.value })}
-                placeholder="Welcome Email"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={handleCreateTemplate}
-              disabled={saving || !newForm.key || !newForm.name}
-              className="bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
-            >
-              {saving ? "Saving…" : "Create"}
-            </button>
-            <button onClick={() => setShowNew(false)} className="text-sm text-gray-500 px-4 py-2 rounded-md hover:bg-gray-100">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <p className="text-sm text-gray-400">Loading…</p>
@@ -140,10 +87,13 @@ export default function TemplatesPage() {
                 >
                   <div>
                     <p className="text-sm font-medium">{t.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {t.key} · {t.channel}
-                      {t.active_version != null && (
-                        <span className="ml-2 bg-green-50 text-green-700 text-xs px-1.5 py-0.5 rounded">v{t.active_version} active</span>
+                    <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                      <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{t.key}</span>
+                      <span>{t.channel}</span>
+                      {t.active_version != null ? (
+                        <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded">v{t.active_version} active</span>
+                      ) : (
+                        <span className="bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded">no active version</span>
                       )}
                     </p>
                   </div>

@@ -1,15 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { Template } from "@/lib/types";
 import { CheckCircle } from "lucide-react";
 import NoApiKey, { isApiKeyError } from "@/components/NoApiKey";
 
 export default function SendPage() {
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [form, setForm] = useState({ template_key: "", recipient_email: "", data: "" });
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ notification_id: string; delivery_id: string } | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    apiFetch<{ data: Template[] }>("/v1/templates")
+      .then((res) => setTemplates(res.data))
+      .catch(() => {});
+  }, []);
+
+  const selectedTemplate = templates.find((t) => t.key === form.template_key);
 
   const handleSend = async () => {
     setSending(true);
@@ -71,13 +81,36 @@ export default function SendPage() {
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm max-w-lg">
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Template key</label>
-              <input
-                value={form.template_key}
-                onChange={(e) => setForm({ ...form, template_key: e.target.value })}
-                placeholder="welcome_email"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
+              <label className="block text-xs font-medium text-gray-700 mb-1">Template</label>
+              {templates.length === 0 ? (
+                <p className="text-xs text-gray-400 py-2">
+                  No templates yet.{" "}
+                  <a href="/dashboard/templates" className="underline text-gray-600">Create one first →</a>
+                </p>
+              ) : (
+                <>
+                  <select
+                    value={form.template_key}
+                    onChange={(e) => setForm({ ...form, template_key: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+                  >
+                    <option value="">Select a template…</option>
+                    {templates.map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedTemplate && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      Key: <span className="font-mono">{selectedTemplate.key}</span>
+                      {selectedTemplate.active_version != null
+                        ? ` · v${selectedTemplate.active_version} active`
+                        : " · no active version"}
+                    </p>
+                  )}
+                </>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Recipient email</label>

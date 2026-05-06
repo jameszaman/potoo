@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/notifylayer/notifylayer/internal/api/handlers"
@@ -15,9 +16,16 @@ import (
 	"github.com/notifylayer/notifylayer/internal/queue"
 )
 
-func New(pool *pgxpool.Pool, q *queue.Client) http.Handler {
+func New(pool *pgxpool.Pool, q *queue.Client, allowedOrigin string) http.Handler {
 	r := chi.NewRouter()
 
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{allowedOrigin},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 	r.Use(chimiddleware.RealIP)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
@@ -29,16 +37,27 @@ func New(pool *pgxpool.Pool, q *queue.Client) http.Handler {
 
 	h := handlers.New(pool, q)
 
-	// Public webhook routes — no auth, raw body needed for signature verification.
+	// Public routes — no API key required.
+	r.Post("/v1/auth/register", h.RegisterHTTP)
+	r.Post("/v1/auth/login", h.LoginHTTP)
+	r.Post("/v1/auth/logout", h.LogoutHTTP)
+	r.Post("/v1/auth/refresh", h.RefreshSessionHTTP)
+	r.Get("/v1/auth/me", h.GetMeHTTP)
+	r.Get("/v1/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
 	r.Post("/v1/webhooks/email/{provider}", h.IngestEmailWebhookHTTP)
 
-	// All API routes are registered once. Auth middleware skips /v1/health.
-	r.Group(func(r chi.Router) {
-		r.Use(auth.AuthenticateExcept("/v1/health")(pool))
-		api.HandlerWithOptions(api.NewStrictHandler(h, nil), api.ChiServerOptions{
-			BaseRouter: r,
-		})
+	// Authenticated API routes on a separate router, mounted at /.
+	// This avoids chi route conflicts with the public auth routes above.
+	apiRouter := chi.NewRouter()
+	apiRouter.Use(auth.Authenticate(pool))
+	api.HandlerWithOptions(api.NewStrictHandler(h, nil), api.ChiServerOptions{
+		BaseRouter: apiRouter,
 	})
+	r.Mount("/", apiRouter)
 
 	return r
 }

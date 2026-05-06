@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -15,8 +16,8 @@ import (
 func main() {
 	ctx := context.Background()
 
-	dsn := envOr("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/notify?sslmode=disable")
-	redisAddr := envOr("REDIS_ADDR", "localhost:6379")
+	dsn := mustEnv("DATABASE_URL")
+	redisAddr := mustEnv("REDIS_ADDR")
 
 	pool, err := db.Connect(ctx, dsn)
 	if err != nil {
@@ -45,9 +46,11 @@ func main() {
 	}
 }
 
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		fmt.Fprintf(os.Stderr, "ERROR: required environment variable %q is not set\n", key)
+		os.Exit(1)
 	}
-	return fallback
+	return v
 }

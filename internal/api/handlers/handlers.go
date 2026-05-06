@@ -25,6 +25,8 @@ type Handlers struct {
 	notifications *repo.NotificationRepo
 	deliveries    *repo.DeliveryRepo
 	events        *repo.DeliveryEventRepo
+	users         *repo.UserRepo
+	sessions      *repo.SessionRepo
 	queue         *queue.Client
 }
 
@@ -35,6 +37,8 @@ func New(pool *pgxpool.Pool, q *queue.Client) *Handlers {
 		notifications: repo.NewNotificationRepo(pool),
 		deliveries:    repo.NewDeliveryRepo(pool),
 		events:        repo.NewDeliveryEventRepo(pool),
+		users:         repo.NewUserRepo(pool),
+		sessions:      repo.NewSessionRepo(pool),
 		queue:         q,
 	}
 }

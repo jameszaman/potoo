@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oklog/ulid/v2"
 
@@ -79,6 +80,10 @@ func (r *NotificationRepo) UpdateStatus(ctx context.Context, id string, status d
 
 func newID() string {
 	return ulid.Make().String()
+}
+
+func toPgTimestamptz(t time.Time) pgtype.Timestamptz {
+	return pgtype.Timestamptz{Time: t, Valid: true}
 }
 
 // timestampNow is a convenience alias used across repo files.

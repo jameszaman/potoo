@@ -29,6 +29,8 @@ tags:
     description: Provider connection management
   - name: webhooks
     description: Inbound provider webhook endpoints (no auth required)
+  - name: auth
+    description: User registration and session management
 
 components:
   securitySchemes:
@@ -38,6 +40,42 @@ components:
       description: API key issued from the NotifyLayer dashboard.
 
   schemas:
+    AuthUser:
+      type: object
+      required: [id, email, created_at]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: james@example.com
+        password:
+          type: string
+          minLength: 8
+          example: supersecret
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
     Error:
       type: object
       required: [error]
@@ -426,6 +464,114 @@ security:
   - ApiKeyAuth: []
 
 paths:
+  /v1/auth/register:
+    post:
+      operationId: register
+      summary: Create a new user account
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/auth/login:
+    post:
+      operationId: login
+      summary: Sign in and receive a session cookie
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated — sets HttpOnly session cookie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/auth/refresh:
+    post:
+      operationId: refreshSession
+      summary: Exchange a refresh token for a new access + refresh token pair
+      tags: [auth]
+      security: []
+      responses:
+        "200":
+          description: New tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/auth/logout:
+    post:
+      operationId: logout
+      summary: Sign out and clear the session cookie
+      tags: [auth]
+      security: []
+      responses:
+        "204":
+          description: Logged out
+
+  /v1/auth/me:
+    get:
+      operationId: getMe
+      summary: Get the current authenticated user
+      tags: [auth]
+      security: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/health:
     get:
       operationId: getHealth

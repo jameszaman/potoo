@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
-import { Bell, LayoutDashboard, Mail, FileText, Send } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Bell, LayoutDashboard, Mail, FileText, Send, LogOut } from "lucide-react";
 import clsx from "clsx";
+import { logout } from "@/lib/auth";
 
 const nav = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -16,6 +16,12 @@ const nav = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/sign-in");
+  };
 
   return (
     <aside className="w-56 shrink-0 flex flex-col border-r border-gray-200 bg-white min-h-screen">
@@ -45,7 +51,13 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-gray-200">
-        <UserButton />
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors w-full"
+        >
+          <LogOut size={15} />
+          Sign out
+        </button>
       </div>
     </aside>
   );

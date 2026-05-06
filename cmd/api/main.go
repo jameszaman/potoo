@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,8 +19,10 @@ import (
 func main() {
 	ctx := context.Background()
 
-	dsn := envOr("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/notify?sslmode=disable")
-	redisAddr := envOr("REDIS_ADDR", "localhost:6379")
+	dsn := mustEnv("DATABASE_URL")
+	redisAddr := mustEnv("REDIS_ADDR")
+	allowedOrigin := mustEnv("ALLOWED_ORIGIN")
+	mustEnv("JWT_SECRET")
 
 	pool, err := db.Connect(ctx, dsn)
 	if err != nil {
@@ -34,7 +37,7 @@ func main() {
 	addr := envOr("API_ADDR", ":8080")
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      server.New(pool, q),
+		Handler:      server.New(pool, q, allowedOrigin),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -58,6 +61,15 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("shutdown error", "err", err)
 	}
+}
+
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		fmt.Fprintf(os.Stderr, "ERROR: required environment variable %q is not set\n", key)
+		os.Exit(1)
+	}
+	return v
 }
 
 func envOr(key, fallback string) string {

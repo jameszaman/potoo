@@ -63,6 +63,7 @@ type CreateVersionParams struct {
 	TextBody        *string
 	SmsBody         *string
 	VariablesSchema map[string]string
+	EditorBlocks    *string
 }
 
 func (r *TemplateRepo) CreateVersion(ctx context.Context, p CreateVersionParams) (*db.TemplateVersion, error) {
@@ -85,6 +86,7 @@ func (r *TemplateRepo) CreateVersion(ctx context.Context, p CreateVersionParams)
 		TextBody:        p.TextBody,
 		SmsBody:         p.SmsBody,
 		VariablesSchema: schema,
+		EditorBlocks:    p.EditorBlocks,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create template version: %w", err)

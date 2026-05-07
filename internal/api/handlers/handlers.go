@@ -16,6 +16,7 @@ import (
 	"github.com/potoo/potoo/internal/db/sqlc"
 	api "github.com/potoo/potoo/internal/gen/openapi"
 	"github.com/potoo/potoo/internal/queue"
+	"github.com/potoo/potoo/internal/storage"
 	tmpl "github.com/potoo/potoo/internal/template"
 )
 
@@ -32,9 +33,10 @@ type Handlers struct {
 	apiKeys       *repo.APIKeyRepo
 	invites       *repo.OrgInviteRepo
 	queue         *queue.Client
+	storage       storage.Driver
 }
 
-func New(pool *pgxpool.Pool, q *queue.Client) *Handlers {
+func New(pool *pgxpool.Pool, q *queue.Client, store storage.Driver) *Handlers {
 	return &Handlers{
 		templates:     repo.NewTemplateRepo(pool),
 		providers:     repo.NewProviderConnectionRepo(pool),
@@ -48,6 +50,7 @@ func New(pool *pgxpool.Pool, q *queue.Client) *Handlers {
 		apiKeys:       repo.NewAPIKeyRepo(pool),
 		invites:       repo.NewOrgInviteRepo(pool),
 		queue:         q,
+		storage:       store,
 	}
 }
 
@@ -247,7 +250,21 @@ func (h *Handlers) GetTemplate(ctx context.Context, req api.GetTemplateRequestOb
 		}
 		return nil, err
 	}
-	return api.GetTemplate200JSONResponse(dbTemplateToAPI(*row)), nil
+
+	out := dbTemplateToAPI(*row)
+	if row.ActiveVersion != nil {
+		av, err := h.templates.GetActiveVersion(ctx, tenant.OrganizationID, tenant.ProjectID, req.TemplateKey)
+		if err == nil && av != nil {
+			if av.Subject != nil {
+				out.ActiveVersionSubject = av.Subject
+			}
+			if av.HtmlBody != nil {
+				out.ActiveVersionHtmlBody = av.HtmlBody
+			}
+			out.ActiveVersionBlocks = av.EditorBlocks
+		}
+	}
+	return api.GetTemplate200JSONResponse(out), nil
 }
 
 func (h *Handlers) CreateTemplateVersion(ctx context.Context, req api.CreateTemplateVersionRequestObject) (api.CreateTemplateVersionResponseObject, error) {
@@ -276,6 +293,7 @@ func (h *Handlers) CreateTemplateVersion(ctx context.Context, req api.CreateTemp
 		TextBody:        req.Body.TextBody,
 		SmsBody:         req.Body.SmsBody,
 		VariablesSchema: schema,
+		EditorBlocks:    req.Body.EditorBlocks,
 	})
 	if err != nil {
 		return nil, err
@@ -550,6 +568,7 @@ func dbVersionToAPI(v db.TemplateVersion) api.TemplateVersion {
 		HtmlBody:      v.HtmlBody,
 		TextBody:      v.TextBody,
 		SmsBody:       v.SmsBody,
+		EditorBlocks:  v.EditorBlocks,
 		Status:        api.TemplateVersionStatus(v.Status),
 		CreatedAt:     v.CreatedAt.Time,
 	}

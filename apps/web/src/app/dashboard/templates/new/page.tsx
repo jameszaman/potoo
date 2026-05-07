@@ -21,7 +21,7 @@ export default function NewTemplatePage() {
     setError("");
     try {
       await apiFetch("/v1/templates", { method: "POST", body: JSON.stringify(form) });
-      router.push("/dashboard/templates");
+      router.push(`/dashboard/templates/${form.key}/edit`);
     } catch (e) {
       setError(String(e));
       setSaving(false);

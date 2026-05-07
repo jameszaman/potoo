@@ -569,6 +569,7 @@ type TemplateVersion struct {
 	VariablesSchema json.RawMessage       `db:"variables_schema" json:"variables_schema"`
 	Status          TemplateVersionStatus `db:"status" json:"status"`
 	CreatedAt       pgtype.Timestamptz    `db:"created_at" json:"created_at"`
+	EditorBlocks    *string               `db:"editor_blocks" json:"editor_blocks"`
 }
 
 type User struct {

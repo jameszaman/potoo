@@ -22,8 +22,8 @@ RETURNING *;
 -- name: CreateTemplateVersion :one
 INSERT INTO template_versions (
     id, template_id, version_number,
-    subject, html_body, text_body, sms_body, variables_schema
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    subject, html_body, text_body, sms_body, variables_schema, editor_blocks
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: GetTemplateVersion :one

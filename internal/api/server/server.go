@@ -3,6 +3,8 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -14,9 +16,10 @@ import (
 	"github.com/potoo/potoo/internal/auth"
 	api "github.com/potoo/potoo/internal/gen/openapi"
 	"github.com/potoo/potoo/internal/queue"
+	"github.com/potoo/potoo/internal/storage"
 )
 
-func New(pool *pgxpool.Pool, q *queue.Client, allowedOrigin string) http.Handler {
+func New(pool *pgxpool.Pool, q *queue.Client, store storage.Driver, allowedOrigin string) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
@@ -35,7 +38,23 @@ func New(pool *pgxpool.Pool, q *queue.Client, allowedOrigin string) http.Handler
 	r.Get("/docs/", swaggerUI)
 	r.Get("/docs/openapi.json", serveSpec)
 
-	h := handlers.New(pool, q)
+	// Serve locally uploaded files. In S3 mode this route is unused
+	// (files are served directly from S3 URLs).
+	if os.Getenv("STORAGE_DRIVER") != "s3" {
+		uploadDir := envOr("STORAGE_LOCAL_PATH", "./uploads")
+		absDir, _ := filepath.Abs(uploadDir)
+		r.Get("/uploads/{file}", func(w http.ResponseWriter, r *http.Request) {
+			name := chi.URLParam(r, "file")
+			// Prevent path traversal
+			if filepath.Base(name) != name {
+				http.NotFound(w, r)
+				return
+			}
+			http.ServeFile(w, r, filepath.Join(absDir, name))
+		})
+	}
+
+	h := handlers.New(pool, q, store)
 
 	// ── Tier 1: Fully public routes ────────────────────────────────────────
 	r.Get("/v1/health", func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +75,6 @@ func New(pool *pgxpool.Pool, q *queue.Client, allowedOrigin string) http.Handler
 	r.Post("/v1/webhooks/email/{provider}", h.IngestEmailWebhookHTTP)
 
 	// ── Tier 2: Session-authenticated routes (cookie, no API key) ──────────
-	// Registered before the api-key router so chi's first-match wins.
 	r.Group(func(r chi.Router) {
 		r.Use(auth.AuthenticateSession(pool))
 		r.Get("/v1/me/orgs", h.ListMyOrgsHTTP)
@@ -78,12 +96,25 @@ func New(pool *pgxpool.Pool, q *queue.Client, allowedOrigin string) http.Handler
 	// ── Tier 3: API key or session cookie — all remaining strict routes ──
 	apiRouter := chi.NewRouter()
 	apiRouter.Use(auth.AuthenticateEither(pool))
+
+	// Upload is not in the OpenAPI spec so it must be registered on apiRouter
+	// directly before HandlerWithOptions registers its routes, so chi's trie
+	// matches this explicit path before the spec routes are evaluated.
+	apiRouter.With(auth.AuthenticateSession(pool)).Post("/v1/uploads/image", h.UploadImageHTTP)
+
 	api.HandlerWithOptions(api.NewStrictHandler(h, nil), api.ChiServerOptions{
 		BaseRouter: apiRouter,
 	})
 	r.Mount("/", apiRouter)
 
 	return r
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
 
 func swaggerUI(w http.ResponseWriter, _ *http.Request) {

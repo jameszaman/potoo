@@ -27,3 +27,8 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Temp
+temp/
+uploads/
+

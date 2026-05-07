@@ -74,15 +74,15 @@ func (a *Adapter) Send(ctx context.Context, input email.SendInput) (email.SendRe
 	}
 	m.Subject(input.Subject)
 
-	if input.HTML != "" {
+	// multipart/alternative: clients pick the last part they support.
+	// Plain text must come first, HTML last, so HTML is preferred.
+	if input.HTML != "" && input.Text != "" {
+		m.SetBodyString(mail.TypeTextPlain, input.Text)
+		m.AddAlternativeString(mail.TypeTextHTML, input.HTML)
+	} else if input.HTML != "" {
 		m.SetBodyString(mail.TypeTextHTML, input.HTML)
-	}
-	if input.Text != "" {
-		if input.HTML != "" {
-			m.AddAlternativeString(mail.TypeTextPlain, input.Text)
-		} else {
-			m.SetBodyString(mail.TypeTextPlain, input.Text)
-		}
+	} else if input.Text != "" {
+		m.SetBodyString(mail.TypeTextPlain, input.Text)
 	}
 
 	// Determine TLS policy based on port:

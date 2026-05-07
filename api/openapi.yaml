@@ -560,6 +560,15 @@ components:
         active_version:
           type: integer
           example: 2
+        active_version_subject:
+          type: string
+          description: Subject line of the active version, if any
+        active_version_html_body:
+          type: string
+          description: HTML body of the active version, if any
+        active_version_blocks:
+          type: string
+          description: JSON-encoded editor blocks of the active version, if any
         created_at:
           type: string
           format: date-time
@@ -597,6 +606,9 @@ components:
           example:
             first_name: string
             workspace_name: string
+        editor_blocks:
+          type: string
+          description: JSON-encoded editor block state
         status:
           $ref: "#/components/schemas/TemplateVersionStatus"
         created_at:
@@ -634,6 +646,9 @@ components:
           type: object
           additionalProperties:
             type: string
+        editor_blocks:
+          type: string
+          description: JSON-encoded editor block state for the rich text editor
 
     RenderTemplateRequest:
       type: object

@@ -14,6 +14,7 @@ import (
 	"github.com/potoo/potoo/internal/api/server"
 	"github.com/potoo/potoo/internal/db"
 	"github.com/potoo/potoo/internal/queue"
+	"github.com/potoo/potoo/internal/storage"
 )
 
 func main() {
@@ -34,10 +35,17 @@ func main() {
 	q := queue.NewClient(redisAddr)
 	defer q.Close() //nolint:errcheck
 
+	baseURL := envOr("API_BASE_URL", "http://localhost:8080")
+	store, err := storage.New(baseURL)
+	if err != nil {
+		slog.Error("storage init failed", "err", err)
+		os.Exit(1)
+	}
+
 	addr := envOr("API_ADDR", ":8080")
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      server.New(pool, q, allowedOrigin),
+		Handler:      server.New(pool, q, store, allowedOrigin),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,

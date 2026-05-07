@@ -14,7 +14,7 @@ const activateTemplateVersion = `-- name: ActivateTemplateVersion :one
 UPDATE template_versions
 SET status = 'active'
 WHERE template_id = $1 AND version_number = $2
-RETURNING id, template_id, version_number, subject, html_body, text_body, sms_body, variables_schema, status, created_at
+RETURNING id, template_id, version_number, subject, html_body, text_body, sms_body, variables_schema, status, created_at, editor_blocks
 `
 
 type ActivateTemplateVersionParams struct {
@@ -36,6 +36,7 @@ func (q *Queries) ActivateTemplateVersion(ctx context.Context, arg ActivateTempl
 		&i.VariablesSchema,
 		&i.Status,
 		&i.CreatedAt,
+		&i.EditorBlocks,
 	)
 	return i, err
 }
@@ -93,9 +94,9 @@ func (q *Queries) CreateTemplate(ctx context.Context, arg CreateTemplateParams) 
 const createTemplateVersion = `-- name: CreateTemplateVersion :one
 INSERT INTO template_versions (
     id, template_id, version_number,
-    subject, html_body, text_body, sms_body, variables_schema
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, template_id, version_number, subject, html_body, text_body, sms_body, variables_schema, status, created_at
+    subject, html_body, text_body, sms_body, variables_schema, editor_blocks
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, template_id, version_number, subject, html_body, text_body, sms_body, variables_schema, status, created_at, editor_blocks
 `
 
 type CreateTemplateVersionParams struct {
@@ -107,6 +108,7 @@ type CreateTemplateVersionParams struct {
 	TextBody        *string         `db:"text_body" json:"text_body"`
 	SmsBody         *string         `db:"sms_body" json:"sms_body"`
 	VariablesSchema json.RawMessage `db:"variables_schema" json:"variables_schema"`
+	EditorBlocks    *string         `db:"editor_blocks" json:"editor_blocks"`
 }
 
 func (q *Queries) CreateTemplateVersion(ctx context.Context, arg CreateTemplateVersionParams) (TemplateVersion, error) {
@@ -119,6 +121,7 @@ func (q *Queries) CreateTemplateVersion(ctx context.Context, arg CreateTemplateV
 		arg.TextBody,
 		arg.SmsBody,
 		arg.VariablesSchema,
+		arg.EditorBlocks,
 	)
 	var i TemplateVersion
 	err := row.Scan(
@@ -132,12 +135,13 @@ func (q *Queries) CreateTemplateVersion(ctx context.Context, arg CreateTemplateV
 		&i.VariablesSchema,
 		&i.Status,
 		&i.CreatedAt,
+		&i.EditorBlocks,
 	)
 	return i, err
 }
 
 const getActiveTemplateVersion = `-- name: GetActiveTemplateVersion :one
-SELECT tv.id, tv.template_id, tv.version_number, tv.subject, tv.html_body, tv.text_body, tv.sms_body, tv.variables_schema, tv.status, tv.created_at FROM template_versions tv
+SELECT tv.id, tv.template_id, tv.version_number, tv.subject, tv.html_body, tv.text_body, tv.sms_body, tv.variables_schema, tv.status, tv.created_at, tv.editor_blocks FROM template_versions tv
 JOIN templates t ON t.id = tv.template_id
 WHERE t.organization_id = $1
   AND t.project_id      = $2
@@ -166,6 +170,7 @@ func (q *Queries) GetActiveTemplateVersion(ctx context.Context, arg GetActiveTem
 		&i.VariablesSchema,
 		&i.Status,
 		&i.CreatedAt,
+		&i.EditorBlocks,
 	)
 	return i, err
 }
@@ -200,7 +205,7 @@ func (q *Queries) GetTemplateByKey(ctx context.Context, arg GetTemplateByKeyPara
 }
 
 const getTemplateVersion = `-- name: GetTemplateVersion :one
-SELECT id, template_id, version_number, subject, html_body, text_body, sms_body, variables_schema, status, created_at FROM template_versions
+SELECT id, template_id, version_number, subject, html_body, text_body, sms_body, variables_schema, status, created_at, editor_blocks FROM template_versions
 WHERE template_id = $1 AND version_number = $2
 LIMIT 1
 `
@@ -224,6 +229,7 @@ func (q *Queries) GetTemplateVersion(ctx context.Context, arg GetTemplateVersion
 		&i.VariablesSchema,
 		&i.Status,
 		&i.CreatedAt,
+		&i.EditorBlocks,
 	)
 	return i, err
 }

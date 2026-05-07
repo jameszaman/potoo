@@ -59,8 +59,8 @@ export default function Sidebar() {
 
   return (
     <aside className="w-56 shrink-0 flex flex-col border-r border-gray-200 bg-white min-h-screen">
-      <div className="h-14 flex items-center px-5 border-b border-gray-200">
-        <span className="font-semibold text-gray-900 tracking-tight">Potoo</span>
+      <div className="h-16 flex items-center px-4 border-b border-gray-200 bg-[#0F172A]">
+        <img src="/favicons/android-chrome-512x512.png" alt="Potoo" className="h-14 w-auto" />
       </div>
 
       {/* Org switcher */}

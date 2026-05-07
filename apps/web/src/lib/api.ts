@@ -1,5 +1,9 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
+// Singleton refresh promise — prevents concurrent 401s from each firing their own
+// refresh and invalidating each other's newly-rotated token.
+let refreshPromise: Promise<boolean> | null = null;
+
 async function doFetch(path: string, options: RequestInit): Promise<Response> {
   return fetch(`${API_BASE}${path}`, {
     ...options,
@@ -11,6 +15,20 @@ async function doFetch(path: string, options: RequestInit): Promise<Response> {
   });
 }
 
+function refreshOnce(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_BASE}/v1/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+    })
+      .then((r) => r.ok)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
@@ -19,12 +37,9 @@ export async function apiFetch<T>(
 
   // Access token expired — attempt a silent refresh then retry once.
   if (res.status === 401) {
-    const refreshed = await fetch(`${API_BASE}/v1/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-    });
+    const ok = await refreshOnce();
 
-    if (refreshed.ok) {
+    if (ok) {
       res = await doFetch(path, options);
     } else {
       // Refresh token also expired — kick to sign-in.

@@ -1,0 +1,107 @@
+Recipient:
+  type: object
+  properties:
+    email:
+      type: string
+      format: email
+      example: user@example.com
+    external_id:
+      type: string
+      example: user_123
+    phone:
+      type: string
+      example: "+15551234567"
+
+TemplateRef:
+  type: object
+  required: [key]
+  properties:
+    key:
+      type: string
+      example: welcome_email
+    data:
+      type: object
+      additionalProperties: true
+      example:
+        first_name: James
+        workspace_name: Acme
+
+RoutingOptions:
+  type: object
+  properties:
+    provider:
+      type: string
+      example: resend
+
+SendNotificationRequest:
+  type: object
+  required: [channel, recipient, template]
+  properties:
+    channel:
+      type: string
+      enum: [email, sms, push, whatsapp]
+      example: email
+    recipient:
+      $ref: "#/components/schemas/Recipient"
+    template:
+      $ref: "#/components/schemas/TemplateRef"
+    routing:
+      $ref: "#/components/schemas/RoutingOptions"
+    idempotency_key:
+      type: string
+      description: Client-supplied deduplication key. Prefer using the Idempotency-Key header instead.
+      example: signup-welcome-user_123
+    metadata:
+      type: object
+      additionalProperties:
+        type: string
+      example:
+        source: signup_flow
+
+SendNotificationResponse:
+  type: object
+  required: [notification_id, delivery_id, status]
+  properties:
+    notification_id:
+      type: string
+      example: not_01HX1234
+    delivery_id:
+      type: string
+      example: del_01HX1234
+    status:
+      type: string
+      enum: [queued]
+      example: queued
+
+NotificationStatus:
+  type: string
+  enum: [queued, processing, sent, delivered, failed_temporary, failed_permanent, bounced, complained, suppressed, cancelled]
+
+Notification:
+  type: object
+  required: [id, channel, status, created_at]
+  properties:
+    id:
+      type: string
+      example: not_01HX1234
+    channel:
+      type: string
+      example: email
+    template_key:
+      type: string
+      example: welcome_email
+    recipient_ref:
+      type: string
+      example: user_123
+    status:
+      $ref: "#/components/schemas/NotificationStatus"
+    metadata:
+      type: object
+      additionalProperties:
+        type: string
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time

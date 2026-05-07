@@ -1,0 +1,102 @@
+OrgSummary:
+  type: object
+  required: [id, name, slug, type, role, is_active]
+  properties:
+    id:
+      type: string
+    name:
+      type: string
+    slug:
+      type: string
+    type:
+      type: string
+      enum: [platform, customer]
+    role:
+      type: string
+      enum: [owner, member]
+    is_active:
+      type: boolean
+    api_key_count:
+      type: integer
+      description: Number of active (non-revoked) API keys — included in platform org listing
+    call_count:
+      type: integer
+      description: Total notifications sent — included in platform org listing
+
+UpdateOrgRequest:
+  type: object
+  properties:
+    is_active:
+      type: boolean
+
+SetupRequest:
+  type: object
+  required: [org_name, first_name, last_name, email, password]
+  properties:
+    org_name:
+      type: string
+      description: Platform organization name
+      example: Acme Platform
+    org_website:
+      type: string
+      example: https://acme.com
+    org_description:
+      type: string
+      maxLength: 200
+      example: The platform organization
+    first_name:
+      type: string
+      example: James
+    last_name:
+      type: string
+      example: Zaman
+    phone:
+      type: string
+      example: "+447911123456"
+    email:
+      type: string
+      format: email
+      example: admin@example.com
+    password:
+      type: string
+      minLength: 8
+
+CreateOrgRequest:
+  type: object
+  required: [name, slug]
+  properties:
+    name:
+      type: string
+      example: Acme Corp
+    slug:
+      type: string
+      example: acme-corp
+
+CreateInviteRequest:
+  type: object
+  required: [org_id]
+  properties:
+    org_id:
+      type: string
+
+InviteResponse:
+  type: object
+  required: [id, org_id, token, expires_at, created_at]
+  properties:
+    id:
+      type: string
+    org_id:
+      type: string
+    org_name:
+      type: string
+    token:
+      type: string
+    used_at:
+      type: string
+      format: date-time
+    expires_at:
+      type: string
+      format: date-time
+    created_at:
+      type: string
+      format: date-time

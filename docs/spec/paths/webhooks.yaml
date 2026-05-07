@@ -1,0 +1,33 @@
+/v1/webhooks/email/{provider}:
+  post:
+    operationId: ingestEmailWebhook
+    summary: Receive email provider webhook
+    description: |
+      Receives delivery status events from an email provider (Resend, SendGrid).
+      Signature verification is performed using the webhook secret stored on the provider connection.
+    tags: [webhooks]
+    security: []
+    parameters:
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [resend, sendgrid]
+        example: resend
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+    responses:
+      "200":
+        description: Webhook accepted
+      "400":
+        description: Invalid payload or signature
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

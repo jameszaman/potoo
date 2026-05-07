@@ -1,0 +1,222 @@
+/v1/templates:
+  get:
+    operationId: listTemplates
+    summary: List templates
+    tags: [templates]
+    responses:
+      "200":
+        description: List of templates
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/Template"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+  post:
+    operationId: createTemplate
+    summary: Create a template
+    tags: [templates]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateTemplateRequest"
+    responses:
+      "201":
+        description: Template created
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Template"
+      "400":
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: Template key already exists
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/templates/{template_key}:
+  get:
+    operationId: getTemplate
+    summary: Get a template
+    tags: [templates]
+    parameters:
+      - name: template_key
+        in: path
+        required: true
+        schema:
+          type: string
+        example: welcome_email
+    responses:
+      "200":
+        description: Template found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Template"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Template not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/templates/{template_key}/versions:
+  post:
+    operationId: createTemplateVersion
+    summary: Create a template version
+    tags: [templates]
+    parameters:
+      - name: template_key
+        in: path
+        required: true
+        schema:
+          type: string
+        example: welcome_email
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateTemplateVersionRequest"
+    responses:
+      "201":
+        description: Version created
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/TemplateVersion"
+      "400":
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Template not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/templates/{template_key}/activate:
+  post:
+    operationId: activateTemplateVersion
+    summary: Activate a template version
+    tags: [templates]
+    parameters:
+      - name: template_key
+        in: path
+        required: true
+        schema:
+          type: string
+        example: welcome_email
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [version_number]
+            properties:
+              version_number:
+                type: integer
+                example: 2
+    responses:
+      "200":
+        description: Version activated
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Template"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Template or version not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/templates/{template_key}/render:
+  post:
+    operationId: renderTemplate
+    summary: Render a template with test data
+    tags: [templates]
+    parameters:
+      - name: template_key
+        in: path
+        required: true
+        schema:
+          type: string
+        example: welcome_email
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/RenderTemplateRequest"
+    responses:
+      "200":
+        description: Rendered output
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RenderTemplateResponse"
+      "400":
+        description: Missing required variables
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Template not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

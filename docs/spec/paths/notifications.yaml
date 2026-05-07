@@ -1,0 +1,83 @@
+/v1/notifications:
+  post:
+    operationId: sendNotification
+    summary: Send a notification
+    description: "Enqueues a notification for delivery. Returns immediately with a queued status."
+    tags: [notifications]
+    parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        description: Client-supplied deduplication key. Requests with the same key return the original response.
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/SendNotificationRequest"
+    responses:
+      "202":
+        description: Notification queued
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/SendNotificationResponse"
+      "400":
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: Idempotency key conflict
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "429":
+        description: Rate limit exceeded
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/notifications/{notification_id}:
+  get:
+    operationId: getNotification
+    summary: Get a notification
+    description: "Returns a notification record by ID."
+    tags: [notifications]
+    parameters:
+      - name: notification_id
+        in: path
+        required: true
+        schema:
+          type: string
+        example: not_01HX1234
+    responses:
+      "200":
+        description: Notification found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Notification"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Notification not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

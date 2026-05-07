@@ -40,7 +40,8 @@ migrate:
 	go run ./cmd/migrate up
 
 generate:
-	$(shell go env GOPATH)/bin/oapi-codegen --config api/oapi-codegen.yaml api/openapi.yaml
+	npx --yes @redocly/cli bundle docs/spec/openapi.yaml -o /tmp/openapi-bundled.yaml
+	$(shell go env GOPATH)/bin/oapi-codegen --config docs/spec/oapi-codegen.yaml /tmp/openapi-bundled.yaml
 	$(shell go env GOPATH)/bin/sqlc generate
 
 lint:

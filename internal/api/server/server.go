@@ -83,6 +83,7 @@ func New(pool *pgxpool.Pool, q *queue.Client, store storage.Driver, allowedOrigi
 		r.Delete("/v1/api-keys/{keyId}", h.RevokeAPIKeyHTTP)
 	})
 
+	// ── Tier 3: Session + platform owner ────────────────────────────────────
 	r.Group(func(r chi.Router) {
 		r.Use(auth.AuthenticateSession(pool))
 		r.Use(auth.RequirePlatformOwner(pool))
@@ -93,7 +94,7 @@ func New(pool *pgxpool.Pool, q *queue.Client, store storage.Driver, allowedOrigi
 		r.Get("/v1/platform/invites", h.ListInvitesHTTP)
 	})
 
-	// ── Tier 3: API key or session cookie — all remaining strict routes ──
+	// ── Tier 4: API key or session cookie — all remaining strict routes ──────
 	apiRouter := chi.NewRouter()
 	apiRouter.Use(auth.AuthenticateEither(pool))
 

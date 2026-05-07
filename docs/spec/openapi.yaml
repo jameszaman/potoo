@@ -1,0 +1,803 @@
+openapi: "3.0.3"
+
+info:
+  title: Potoo API
+  version: "0.1.0"
+  description: |
+    Developer-first notification orchestration platform.
+
+    ## Authentication tiers
+
+    Every endpoint belongs to one of four tiers:
+
+    **Tier 1 — Public**
+    No authentication required. Includes health check, platform status, initial
+    setup, login, logout, token refresh, invite validation, and provider webhooks.
+
+    **Tier 2 — Session**
+    Requires a valid session cookie (`pt_access`) obtained via `POST /v1/auth/login`.
+    Access tokens expire after 15 minutes and are silently refreshed using the
+    `pt_refresh` cookie. Includes org switching, org listing, and API key management.
+
+    **Tier 3 — Session + platform owner**
+    Requires a session cookie and the authenticated user must be the owner of the
+    platform organization. Regular members receive `403 Forbidden`.
+    Includes org management and invite creation.
+
+    **Tier 4 — API key or session**
+    Accepts either a Bearer API key **or** a session cookie — both resolve the same
+    tenant context. Use API keys for programmatic/server-to-server calls; the dashboard
+    uses the session cookie. Includes providers, templates, notifications, and deliveries.
+
+    ```
+    Authorization: Bearer <api_key>
+    ```
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: system
+    description: "**Tier 1.** Health and diagnostics."
+  - name: setup
+    description: "**Tier 1.** One-time platform bootstrap."
+  - name: auth
+    description: "Mixed — see individual endpoints. Login, logout, refresh, invite, and register are Tier 1. Select-org and list-my-orgs are Tier 2."
+  - name: platform
+    description: "**Tier 3.** Manage customer organizations and invite links. Platform owner only."
+  - name: api-keys
+    description: "**Tier 2.** Create and revoke API keys for the current org."
+  - name: providers
+    description: "**Tier 4.** Provider connection management."
+  - name: templates
+    description: "**Tier 4.** Template management and rendering."
+  - name: notifications
+    description: "**Tier 4.** Send and inspect notifications."
+  - name: deliveries
+    description: "**Tier 4.** Delivery records and event timelines."
+  - name: webhooks
+    description: "**Tier 1.** Inbound provider webhook endpoints. Signature verification is performed internally."
+
+# Default: Tier 4 — API key or session cookie required.
+# Individual endpoints override this with security: [] (public) or
+# security: [{SessionCookieAuth: []}] (session-only).
+security:
+  - ApiKeyAuth: []
+  - SessionCookieAuth: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      description: |
+        API key issued from the Potoo dashboard (Tier 4).
+        Pass as `Authorization: Bearer <api_key>`.
+    SessionCookieAuth:
+      type: apiKey
+      in: cookie
+      name: pt_access
+      description: |
+        HttpOnly session cookie set by `POST /v1/auth/login` (Tier 2, 3, and 4).
+        The dashboard uses this automatically. Access tokens expire after 15 minutes
+        and are silently refreshed using the `pt_refresh` cookie.
+
+  schemas:
+    AuthUser:
+      type: object
+      required: [id, email, created_at]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+
+    OrgSummary:
+      type: object
+      required: [id, name, slug, type, role, is_active]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        type:
+          type: string
+          enum: [platform, customer]
+        role:
+          type: string
+          enum: [owner, member]
+        is_active:
+          type: boolean
+        api_key_count:
+          type: integer
+          description: Number of active (non-revoked) API keys — included in platform org listing
+        call_count:
+          type: integer
+          description: Total notifications sent — included in platform org listing
+
+    UpdateOrgRequest:
+      type: object
+      properties:
+        is_active:
+          type: boolean
+
+    SetupRequest:
+      type: object
+      required: [org_name, first_name, last_name, email, password]
+      properties:
+        org_name:
+          type: string
+          description: Platform organization name
+          example: Acme Platform
+        org_website:
+          type: string
+          example: https://acme.com
+        org_description:
+          type: string
+          maxLength: 200
+          example: The platform organization
+        first_name:
+          type: string
+          example: James
+        last_name:
+          type: string
+          example: Zaman
+        phone:
+          type: string
+          example: "+447911123456"
+        email:
+          type: string
+          format: email
+          example: admin@example.com
+        password:
+          type: string
+          minLength: 8
+
+    SelectOrgRequest:
+      type: object
+      required: [org_id]
+      properties:
+        org_id:
+          type: string
+
+    CreateOrgRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          example: Acme Corp
+        slug:
+          type: string
+          example: acme-corp
+
+    ApiKey:
+      type: object
+      required: [id, name, key_prefix, scopes, created_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        key_prefix:
+          type: string
+          description: First characters of the key — safe to display, not secret
+        scopes:
+          type: array
+          items:
+            type: string
+        last_used_at:
+          type: string
+          format: date-time
+        revoked_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    CreateAPIKeyRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: Production key
+        scopes:
+          type: array
+          items:
+            type: string
+          default: []
+
+    CreateAPIKeyResponse:
+      allOf:
+        - $ref: "#/components/schemas/ApiKey"
+        - type: object
+          required: [key]
+          properties:
+            key:
+              type: string
+              description: Full API key — shown once, never retrievable again
+
+    RegisterRequest:
+      type: object
+      required: [org_name, first_name, last_name, email, password]
+      properties:
+        org_name:
+          type: string
+          example: Skyline Labs
+        org_website:
+          type: string
+          example: https://example.com
+        org_description:
+          type: string
+          maxLength: 200
+          example: A short description of what your organization does
+        first_name:
+          type: string
+          example: Morgan
+        last_name:
+          type: string
+          example: Taylor
+        phone:
+          type: string
+          example: "+1 555 000 0000"
+        email:
+          type: string
+          format: email
+          example: you@example.com
+        password:
+          type: string
+          minLength: 8
+
+    InviteAcceptRequest:
+      type: object
+      required: [token, first_name, last_name, email, password]
+      properties:
+        token:
+          type: string
+        first_name:
+          type: string
+          example: James
+        last_name:
+          type: string
+          example: Zaman
+        phone:
+          type: string
+          example: "+447911123456"
+        email:
+          type: string
+          format: email
+          example: james@example.com
+        password:
+          type: string
+          minLength: 8
+
+    CreateInviteRequest:
+      type: object
+      required: [org_id]
+      properties:
+        org_id:
+          type: string
+
+    InviteResponse:
+      type: object
+      required: [id, org_id, token, expires_at, created_at]
+      properties:
+        id:
+          type: string
+        org_id:
+          type: string
+        org_name:
+          type: string
+        token:
+          type: string
+        used_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    InvitePreview:
+      type: object
+      required: [org_name, expires_at]
+      properties:
+        org_name:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+              example: validation_failed
+            message:
+              type: string
+              example: "Template is missing required variable: first_name"
+            request_id:
+              type: string
+              example: req_01HX1234
+            docs_url:
+              type: string
+              example: https://docs.potoo.com/errors/validation_failed
+
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: ok
+
+    Recipient:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        external_id:
+          type: string
+          example: user_123
+        phone:
+          type: string
+          example: "+15551234567"
+
+    TemplateRef:
+      type: object
+      required: [key]
+      properties:
+        key:
+          type: string
+          example: welcome_email
+        data:
+          type: object
+          additionalProperties: true
+          example:
+            first_name: James
+            workspace_name: Acme
+
+    RoutingOptions:
+      type: object
+      properties:
+        provider:
+          type: string
+          example: resend
+
+    SendNotificationRequest:
+      type: object
+      required: [channel, recipient, template]
+      properties:
+        channel:
+          type: string
+          enum: [email, sms, push, whatsapp]
+          example: email
+        recipient:
+          $ref: "#/components/schemas/Recipient"
+        template:
+          $ref: "#/components/schemas/TemplateRef"
+        routing:
+          $ref: "#/components/schemas/RoutingOptions"
+        idempotency_key:
+          type: string
+          description: Client-supplied deduplication key. Prefer using the Idempotency-Key header instead.
+          example: signup-welcome-user_123
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            source: signup_flow
+
+    SendNotificationResponse:
+      type: object
+      required: [notification_id, delivery_id, status]
+      properties:
+        notification_id:
+          type: string
+          example: not_01HX1234
+        delivery_id:
+          type: string
+          example: del_01HX1234
+        status:
+          type: string
+          enum: [queued]
+          example: queued
+
+    NotificationStatus:
+      type: string
+      enum: [queued, processing, sent, delivered, failed_temporary, failed_permanent, bounced, complained, suppressed, cancelled]
+
+    Notification:
+      type: object
+      required: [id, channel, status, created_at]
+      properties:
+        id:
+          type: string
+          example: not_01HX1234
+        channel:
+          type: string
+          example: email
+        template_key:
+          type: string
+          example: welcome_email
+        recipient_ref:
+          type: string
+          example: user_123
+        status:
+          $ref: "#/components/schemas/NotificationStatus"
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Delivery:
+      type: object
+      required: [id, notification_id, channel, status, attempt_count, created_at]
+      properties:
+        id:
+          type: string
+          example: del_01HX1234
+        notification_id:
+          type: string
+          example: not_01HX1234
+        channel:
+          type: string
+          example: email
+        provider_type:
+          type: string
+          example: resend
+        provider_message_id:
+          type: string
+          example: msg_abc123
+        status:
+          $ref: "#/components/schemas/NotificationStatus"
+        attempt_count:
+          type: integer
+          example: 1
+        last_error_code:
+          type: string
+        last_error_message:
+          type: string
+        sent_at:
+          type: string
+          format: date-time
+        delivered_at:
+          type: string
+          format: date-time
+        failed_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProviderType:
+      type: string
+      enum: [resend, sendgrid, ses, twilio, fcm, smtp]
+
+    ProviderConnection:
+      type: object
+      required: [id, provider_type, channel, display_name, is_default, is_active, created_at]
+      properties:
+        id:
+          type: string
+          example: pc_01HX1234
+        provider_type:
+          $ref: "#/components/schemas/ProviderType"
+        channel:
+          type: string
+          enum: [email, sms, push]
+          example: email
+        display_name:
+          type: string
+          example: Resend Production
+        is_default:
+          type: boolean
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    UpdateProviderConnectionRequest:
+      type: object
+      required: [display_name, credentials]
+      properties:
+        display_name:
+          type: string
+        credentials:
+          type: object
+          additionalProperties:
+            type: string
+
+    CreateProviderConnectionRequest:
+      type: object
+      required: [provider_type, channel, display_name, credentials]
+      properties:
+        provider_type:
+          $ref: "#/components/schemas/ProviderType"
+        channel:
+          type: string
+          enum: [email, sms, push]
+        display_name:
+          type: string
+          example: Resend Production
+        credentials:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Provider-specific credentials.
+            Resend/SendGrid: `api_key` (and optionally `webhook_key`, `from_email`, `from_name`).
+            SMTP: `host`, `port`, `username`, `password` (and optionally `from_email`, `from_name`).
+          example:
+            api_key: re_123abc
+        is_default:
+          type: boolean
+          default: false
+
+    TemplateChannel:
+      type: string
+      enum: [email, sms, push, whatsapp]
+
+    TemplateVersionStatus:
+      type: string
+      enum: [draft, active, archived]
+
+    Template:
+      type: object
+      required: [id, key, name, channel, created_at]
+      properties:
+        id:
+          type: string
+          example: tpl_01HX1234
+        key:
+          type: string
+          example: welcome_email
+        name:
+          type: string
+          example: Welcome Email
+        channel:
+          $ref: "#/components/schemas/TemplateChannel"
+        active_version:
+          type: integer
+          example: 2
+        active_version_subject:
+          type: string
+          description: Subject line of the active version, if any
+        active_version_html_body:
+          type: string
+          description: HTML body of the active version, if any
+        active_version_blocks:
+          type: string
+          description: JSON-encoded editor blocks of the active version, if any
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TemplateVersion:
+      type: object
+      required: [id, template_id, version_number, status, created_at]
+      properties:
+        id:
+          type: string
+          example: tv_01HX1234
+        template_id:
+          type: string
+          example: tpl_01HX1234
+        version_number:
+          type: integer
+          example: 1
+        subject:
+          type: string
+          example: "Welcome to {{workspace_name}}"
+        html_body:
+          type: string
+          example: "<p>Hi {{first_name}}</p>"
+        text_body:
+          type: string
+        sms_body:
+          type: string
+        variables_schema:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            first_name: string
+            workspace_name: string
+        editor_blocks:
+          type: string
+          description: JSON-encoded editor block state
+        status:
+          $ref: "#/components/schemas/TemplateVersionStatus"
+        created_at:
+          type: string
+          format: date-time
+
+    CreateTemplateRequest:
+      type: object
+      required: [key, name, channel]
+      properties:
+        key:
+          type: string
+          example: welcome_email
+        name:
+          type: string
+          example: Welcome Email
+        channel:
+          $ref: "#/components/schemas/TemplateChannel"
+
+    CreateTemplateVersionRequest:
+      type: object
+      required: [subject, html_body]
+      properties:
+        subject:
+          type: string
+          example: "Welcome to {{workspace_name}}"
+        html_body:
+          type: string
+          example: "<p>Hi {{first_name}}, welcome to {{workspace_name}}!</p>"
+        text_body:
+          type: string
+        sms_body:
+          type: string
+        variables_schema:
+          type: object
+          additionalProperties:
+            type: string
+        editor_blocks:
+          type: string
+          description: JSON-encoded editor block state for the rich text editor
+
+    RenderTemplateRequest:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+          example:
+            first_name: James
+            workspace_name: Acme
+
+    RenderTemplateResponse:
+      type: object
+      required: [subject, html_body]
+      properties:
+        subject:
+          type: string
+        html_body:
+          type: string
+        text_body:
+          type: string
+        sms_body:
+          type: string
+
+    DeliveryEvent:
+      type: object
+      required: [id, delivery_id, event_type, occurred_at, created_at]
+      properties:
+        id:
+          type: string
+          example: evt_01HX1234
+        delivery_id:
+          type: string
+          example: del_01HX1234
+        event_type:
+          type: string
+          enum: [queued, sent, delivered, opened, clicked, bounced, complained, failed]
+          example: delivered
+        provider_type:
+          type: string
+          example: resend
+        provider_event_id:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+paths:
+  /v1/health:
+    $ref: "paths/system.yaml#/~1v1~1health"
+  /v1/platform/status:
+    $ref: "paths/system.yaml#/~1v1~1platform~1status"
+  /v1/setup:
+    $ref: "paths/setup.yaml#/~1v1~1setup"
+  /v1/auth/register:
+    $ref: "paths/auth.yaml#/~1v1~1auth~1register"
+  /v1/auth/accept-invite:
+    $ref: "paths/auth.yaml#/~1v1~1auth~1accept-invite"
+  /v1/invite/{token}:
+    $ref: "paths/auth.yaml#/~1v1~1invite~1{token}"
+  /v1/auth/login:
+    $ref: "paths/auth.yaml#/~1v1~1auth~1login"
+  /v1/auth/refresh:
+    $ref: "paths/auth.yaml#/~1v1~1auth~1refresh"
+  /v1/auth/logout:
+    $ref: "paths/auth.yaml#/~1v1~1auth~1logout"
+  /v1/auth/me:
+    $ref: "paths/auth.yaml#/~1v1~1auth~1me"
+  /v1/auth/select-org:
+    $ref: "paths/auth.yaml#/~1v1~1auth~1select-org"
+  /v1/me/orgs:
+    $ref: "paths/auth.yaml#/~1v1~1me~1orgs"
+  /v1/platform/orgs:
+    $ref: "paths/platform.yaml#/~1v1~1platform~1orgs"
+  /v1/platform/orgs/{orgId}:
+    $ref: "paths/platform.yaml#/~1v1~1platform~1orgs~1{orgId}"
+  /v1/platform/invites:
+    $ref: "paths/platform.yaml#/~1v1~1platform~1invites"
+  /v1/api-keys:
+    $ref: "paths/api-keys.yaml#/~1v1~1api-keys"
+  /v1/api-keys/{keyId}:
+    $ref: "paths/api-keys.yaml#/~1v1~1api-keys~1{keyId}"
+  /v1/notifications:
+    $ref: "paths/notifications.yaml#/~1v1~1notifications"
+  /v1/notifications/{notification_id}:
+    $ref: "paths/notifications.yaml#/~1v1~1notifications~1{notification_id}"
+  /v1/deliveries/{delivery_id}:
+    $ref: "paths/deliveries.yaml#/~1v1~1deliveries~1{delivery_id}"
+  /v1/deliveries/{delivery_id}/events:
+    $ref: "paths/deliveries.yaml#/~1v1~1deliveries~1{delivery_id}~1events"
+  /v1/provider-connections:
+    $ref: "paths/providers.yaml#/~1v1~1provider-connections"
+  /v1/provider-connections/{connection_id}:
+    $ref: "paths/providers.yaml#/~1v1~1provider-connections~1{connection_id}"
+  /v1/templates:
+    $ref: "paths/templates.yaml#/~1v1~1templates"
+  /v1/templates/{template_key}:
+    $ref: "paths/templates.yaml#/~1v1~1templates~1{template_key}"
+  /v1/templates/{template_key}/versions:
+    $ref: "paths/templates.yaml#/~1v1~1templates~1{template_key}~1versions"
+  /v1/templates/{template_key}/activate:
+    $ref: "paths/templates.yaml#/~1v1~1templates~1{template_key}~1activate"
+  /v1/templates/{template_key}/render:
+    $ref: "paths/templates.yaml#/~1v1~1templates~1{template_key}~1render"
+  /v1/webhooks/email/{provider}:
+    $ref: "paths/webhooks.yaml#/~1v1~1webhooks~1email~1{provider}"

@@ -1,0 +1,139 @@
+TemplateChannel:
+  type: string
+  enum: [email, sms, push, whatsapp]
+
+TemplateVersionStatus:
+  type: string
+  enum: [draft, active, archived]
+
+Template:
+  type: object
+  required: [id, key, name, channel, created_at]
+  properties:
+    id:
+      type: string
+      example: tpl_01HX1234
+    key:
+      type: string
+      example: welcome_email
+    name:
+      type: string
+      example: Welcome Email
+    channel:
+      $ref: "#/components/schemas/TemplateChannel"
+    active_version:
+      type: integer
+      example: 2
+    active_version_subject:
+      type: string
+      description: Subject line of the active version, if any
+    active_version_html_body:
+      type: string
+      description: HTML body of the active version, if any
+    active_version_blocks:
+      type: string
+      description: JSON-encoded editor blocks of the active version, if any
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+TemplateVersion:
+  type: object
+  required: [id, template_id, version_number, status, created_at]
+  properties:
+    id:
+      type: string
+      example: tv_01HX1234
+    template_id:
+      type: string
+      example: tpl_01HX1234
+    version_number:
+      type: integer
+      example: 1
+    subject:
+      type: string
+      example: "Welcome to {{workspace_name}}"
+    html_body:
+      type: string
+      example: "<p>Hi {{first_name}}</p>"
+    text_body:
+      type: string
+    sms_body:
+      type: string
+    variables_schema:
+      type: object
+      additionalProperties:
+        type: string
+      example:
+        first_name: string
+        workspace_name: string
+    editor_blocks:
+      type: string
+      description: JSON-encoded editor block state
+    status:
+      $ref: "#/components/schemas/TemplateVersionStatus"
+    created_at:
+      type: string
+      format: date-time
+
+CreateTemplateRequest:
+  type: object
+  required: [key, name, channel]
+  properties:
+    key:
+      type: string
+      example: welcome_email
+    name:
+      type: string
+      example: Welcome Email
+    channel:
+      $ref: "#/components/schemas/TemplateChannel"
+
+CreateTemplateVersionRequest:
+  type: object
+  required: [subject, html_body]
+  properties:
+    subject:
+      type: string
+      example: "Welcome to {{workspace_name}}"
+    html_body:
+      type: string
+      example: "<p>Hi {{first_name}}, welcome to {{workspace_name}}!</p>"
+    text_body:
+      type: string
+    sms_body:
+      type: string
+    variables_schema:
+      type: object
+      additionalProperties:
+        type: string
+    editor_blocks:
+      type: string
+      description: JSON-encoded editor block state for the rich text editor
+
+RenderTemplateRequest:
+  type: object
+  required: [data]
+  properties:
+    data:
+      type: object
+      additionalProperties: true
+      example:
+        first_name: James
+        workspace_name: Acme
+
+RenderTemplateResponse:
+  type: object
+  required: [subject, html_body]
+  properties:
+    subject:
+      type: string
+    html_body:
+      type: string
+    text_body:
+      type: string
+    sms_body:
+      type: string

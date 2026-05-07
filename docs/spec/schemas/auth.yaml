@@ -1,0 +1,93 @@
+AuthUser:
+  type: object
+  required: [id, email, created_at]
+  properties:
+    id:
+      type: string
+    email:
+      type: string
+      format: email
+    created_at:
+      type: string
+      format: date-time
+
+LoginRequest:
+  type: object
+  required: [email, password]
+  properties:
+    email:
+      type: string
+      format: email
+    password:
+      type: string
+
+SelectOrgRequest:
+  type: object
+  required: [org_id]
+  properties:
+    org_id:
+      type: string
+
+RegisterRequest:
+  type: object
+  required: [org_name, first_name, last_name, email, password]
+  properties:
+    org_name:
+      type: string
+      example: Skyline Labs
+    org_website:
+      type: string
+      example: https://example.com
+    org_description:
+      type: string
+      maxLength: 200
+      example: A short description of what your organization does
+    first_name:
+      type: string
+      example: Morgan
+    last_name:
+      type: string
+      example: Taylor
+    phone:
+      type: string
+      example: "+1 555 000 0000"
+    email:
+      type: string
+      format: email
+      example: you@example.com
+    password:
+      type: string
+      minLength: 8
+
+InviteAcceptRequest:
+  type: object
+  required: [token, first_name, last_name, email, password]
+  properties:
+    token:
+      type: string
+    first_name:
+      type: string
+      example: James
+    last_name:
+      type: string
+      example: Zaman
+    phone:
+      type: string
+      example: "+447911123456"
+    email:
+      type: string
+      format: email
+      example: james@example.com
+    password:
+      type: string
+      minLength: 8
+
+InvitePreview:
+  type: object
+  required: [org_name, expires_at]
+  properties:
+    org_name:
+      type: string
+    expires_at:
+      type: string
+      format: date-time

@@ -6,7 +6,7 @@
 
 Bring-your-own-provider notification orchestration platform.
 
-- **Backend:** Go 1.22+ with chi, OpenAPI-first (`api/openapi.yaml` is source of truth)
+- **Backend:** Go 1.22+ with chi, OpenAPI-first (`docs/spec/openapi.yaml` is source of truth)
 - **Frontend:** Next.js + TypeScript (`apps/web/`)
 - **Database:** PostgreSQL 16, goose migrations, sqlc + pgx/v5
 - **Queue:** Redis + Asynq
@@ -41,10 +41,12 @@ make test-integration  # integration tests
 
 ## Hard rules
 
-1. Read `README.md` and `api/openapi.yaml` before editing code.
-2. Never implement public API behavior without updating `api/openapi.yaml` first.
-3. Never edit `internal/gen/` — it is generated. (sqlc output will live in `internal/db/sqlc/` once Phase 2 begins.)
-4. Run `make generate` after changing the OpenAPI spec or SQL queries.
+1. Read `README.md` and `docs/spec/openapi.yaml` before editing code.
+2. Never implement public API behavior without updating `docs/spec/openapi.yaml` first — add the path to the correct domain file under `docs/spec/paths/`.
+3. After updating the spec: run `make generate` immediately. The spec is embedded in the binary at compile time — Swagger UI at `/docs` will not reflect changes until this is done and the server is rebuilt.
+4. After updating the spec: register the new route in `internal/api/server/server.go` under the correct auth tier group.
+5. After updating the spec: update the endpoint table in `README.md` (Method, Path, Tier, Description columns) to match.
+5. Never edit `internal/gen/openapi/` or `internal/db/sqlc/` — they are generated. Run `make generate` after changing `docs/spec/` or `internal/db/queries/`.
 5. Run `make lint test` before reporting a task complete.
 6. Handlers must be thin — business logic goes in services.
 7. All provider-specific code goes inside `internal/providers/`.
@@ -65,8 +67,11 @@ make test-integration  # integration tests
 ## Key file locations
 
 ```
-api/openapi.yaml              API contract — edit this first
-api/oapi-codegen.yaml         Code generation config
+docs/spec/openapi.yaml        API contract — edit this first
+docs/spec/schemas/            Domain schema files (auth, orgs, providers, templates, …)
+docs/spec/paths/              Domain path files (auth, platform, providers, templates, …)
+docs/spec/oapi-codegen.yaml   Code generation config
+docs/architecture/            Architecture documentation
 sqlc.yaml                     sqlc config
 internal/gen/openapi/         Generated Go types and server interface (do not edit)
 internal/api/handlers/        HTTP handlers (thin — business logic goes in services)

@@ -104,9 +104,9 @@ repos:
       - id: spectral-lint
         name: spectral lint OpenAPI
         language: system
-        entry: /Users/hedayet/.npm-global/bin/spectral lint api/openapi.yaml --ruleset .spectral.yaml
+        entry: /Users/hedayet/.npm-global/bin/spectral lint docs/spec/openapi.yaml --ruleset .spectral.yaml
         pass_filenames: false
-        files: ^api/openapi\.yaml$
+        files: ^docs/spec/openapi\.yaml$
 
   # ---------------------------------------------------------------------------
   # Frontend: lint and format

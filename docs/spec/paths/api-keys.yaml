@@ -1,0 +1,89 @@
+/v1/api-keys:
+  get:
+    operationId: listAPIKeys
+    summary: List API keys for the session org
+    description: "Returns keys for the org bound to the current session."
+    tags: [api-keys]
+    security:
+      - SessionCookieAuth: []
+    responses:
+      "200":
+        description: Key list
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/ApiKey"
+      "401":
+        description: Not authenticated
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+  post:
+    operationId: createAPIKey
+    summary: Create an API key
+    description: "The full key is returned once and cannot be retrieved again."
+    tags: [api-keys]
+    security:
+      - SessionCookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateAPIKeyRequest"
+    responses:
+      "201":
+        description: Key created — full key shown once
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/CreateAPIKeyResponse"
+      "401":
+        description: Not authenticated
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "403":
+        description: Not authorised to create a key for that org
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/api-keys/{keyId}:
+  delete:
+    operationId: revokeAPIKey
+    summary: Revoke an API key
+    description: "Revocation is permanent."
+    tags: [api-keys]
+    security:
+      - SessionCookieAuth: []
+    parameters:
+      - name: keyId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: Key revoked
+      "401":
+        description: Not authenticated
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Key not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

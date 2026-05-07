@@ -1,0 +1,179 @@
+/v1/provider-connections:
+  get:
+    operationId: listProviderConnections
+    summary: List provider connections
+    tags: [providers]
+    responses:
+      "200":
+        description: List of provider connections
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/ProviderConnection"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+  post:
+    operationId: createProviderConnection
+    summary: Create a provider connection
+    tags: [providers]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateProviderConnectionRequest"
+    responses:
+      "201":
+        description: Provider connection created
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProviderConnection"
+      "400":
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/provider-connections/{connection_id}:
+  get:
+    operationId: getProviderConnection
+    summary: Get a provider connection
+    tags: [providers]
+    parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Provider connection found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProviderConnection"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+  put:
+    operationId: updateProviderConnection
+    summary: Update a provider connection's display name and credentials
+    tags: [providers]
+    parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/UpdateProviderConnectionRequest"
+    responses:
+      "200":
+        description: Updated
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProviderConnection"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+  patch:
+    operationId: setProviderDefault
+    summary: Set a provider connection as the default
+    tags: [providers]
+    parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Updated
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ProviderConnection"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+  delete:
+    operationId: deleteProviderConnection
+    summary: Delete a provider connection
+    tags: [providers]
+    parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: Deleted
+      "400":
+        description: Cannot delete default provider
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

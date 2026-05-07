@@ -1,0 +1,128 @@
+/v1/platform/orgs:
+  get:
+    operationId: listOrgs
+    summary: List all customer organizations (platform owner only)
+    description: "Returns 403 if the authenticated user is not the platform owner."
+    tags: [platform]
+    security:
+      - SessionCookieAuth: []
+    responses:
+      "200":
+        description: Org list
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/OrgSummary"
+  post:
+    operationId: createOrg
+    summary: Create a customer organization (platform owner only)
+    description: "Returns 403 if the authenticated user is not the platform owner."
+    tags: [platform]
+    security:
+      - SessionCookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateOrgRequest"
+    responses:
+      "201":
+        description: Org created
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/OrgSummary"
+      "409":
+        description: Slug already taken
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/platform/orgs/{orgId}:
+  patch:
+    operationId: updateOrg
+    summary: Update a customer organization (platform owner only)
+    description: "Returns 403 if the authenticated user is not the platform owner."
+    tags: [platform]
+    security:
+      - SessionCookieAuth: []
+    parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/UpdateOrgRequest"
+    responses:
+      "200":
+        description: Org updated
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/OrgSummary"
+      "404":
+        description: Org not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/platform/invites:
+  post:
+    operationId: createInvite
+    summary: Create a single-use invite link for a customer org (platform owner only)
+    description: "Invite token expires after 7 days and can only be used once."
+    tags: [platform]
+    security:
+      - SessionCookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateInviteRequest"
+    responses:
+      "201":
+        description: Invite created
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/InviteResponse"
+      "404":
+        description: Org not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+  get:
+    operationId: listInvites
+    summary: List all invites (platform owner only)
+    tags: [platform]
+    security:
+      - SessionCookieAuth: []
+    responses:
+      "200":
+        description: Invite list
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/InviteResponse"

@@ -1,0 +1,244 @@
+/v1/auth/register:
+  post:
+    operationId: register
+    summary: Create a customer organization and owner account together
+    tags: [auth]
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/RegisterRequest"
+    responses:
+      "201":
+        description: Organization and account created
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuthUser"
+      "400":
+        description: Validation error or platform not configured
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: Email or org slug already exists
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/auth/accept-invite:
+  post:
+    operationId: acceptInvite
+    summary: Accept an invite and create a user account
+    description: "Token must be valid, unused, and unexpired."
+    tags: [auth]
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/InviteAcceptRequest"
+    responses:
+      "201":
+        description: Account created and joined organization
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuthUser"
+      "400":
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: Email already registered
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "410":
+        description: Invite already used or expired
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/invite/{token}:
+  get:
+    operationId: getInvite
+    summary: Validate an invite token and return org info for the invite page
+    tags: [auth]
+    security: []
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: Valid invite
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/InvitePreview"
+      "404":
+        description: Invite not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "410":
+        description: Invite already used or expired
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/auth/login:
+  post:
+    operationId: login
+    summary: Sign in and receive a session cookie
+    description: "Sets `pt_access` (15 min) and `pt_refresh` (30 days) HttpOnly cookies on success."
+    tags: [auth]
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/LoginRequest"
+    responses:
+      "200":
+        description: Authenticated — sets HttpOnly session cookie
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuthUser"
+      "401":
+        description: Invalid credentials
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/auth/refresh:
+  post:
+    operationId: refreshSession
+    summary: Exchange a refresh token for a new access + refresh token pair
+    description: "Reads `pt_refresh` cookie. Rotates both tokens and resets the 30-day expiry window."
+    tags: [auth]
+    security: []
+    responses:
+      "200":
+        description: New tokens issued
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuthUser"
+      "401":
+        description: Invalid or expired refresh token
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/auth/logout:
+  post:
+    operationId: logout
+    summary: Sign out and clear the session cookie
+    description: "Deletes the session from the database and clears both auth cookies."
+    tags: [auth]
+    security: []
+    responses:
+      "204":
+        description: Logged out
+
+/v1/auth/me:
+  get:
+    operationId: getMe
+    summary: Get the current authenticated user
+    description: "Returns the user from the session cookie if present, otherwise 401."
+    tags: [auth]
+    security: []
+    responses:
+      "200":
+        description: Current user
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuthUser"
+      "401":
+        description: Not authenticated
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/auth/select-org:
+  post:
+    operationId: selectOrg
+    summary: Switch active org — deletes current session and starts a new one
+    description: "**Tier 2.** User must be a member of the target org."
+    tags: [auth]
+    security:
+      - SessionCookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/SelectOrgRequest"
+    responses:
+      "200":
+        description: Org selected — new session issued
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuthUser"
+      "401":
+        description: Not authenticated
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "403":
+        description: Not a member of the requested org
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/me/orgs:
+  get:
+    operationId: listMyOrgs
+    summary: List all orgs the current user belongs to
+    description: "**Tier 2.** Returns all orgs the authenticated user is a member of."
+    tags: [auth]
+    security:
+      - SessionCookieAuth: []
+    responses:
+      "200":
+        description: Org list
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/OrgSummary"
+      "401":
+        description: Not authenticated
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

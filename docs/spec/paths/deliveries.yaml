@@ -1,0 +1,71 @@
+/v1/deliveries/{delivery_id}:
+  get:
+    operationId: getDelivery
+    summary: Get a delivery
+    description: "Returns a delivery record by ID."
+    tags: [deliveries]
+    parameters:
+      - name: delivery_id
+        in: path
+        required: true
+        schema:
+          type: string
+        example: del_01HX1234
+    responses:
+      "200":
+        description: Delivery found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Delivery"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Delivery not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/deliveries/{delivery_id}/events:
+  get:
+    operationId: getDeliveryEvents
+    summary: Get delivery events
+    description: "Returns the full event timeline for a delivery."
+    tags: [deliveries]
+    parameters:
+      - name: delivery_id
+        in: path
+        required: true
+        schema:
+          type: string
+        example: del_01HX1234
+    responses:
+      "200":
+        description: Delivery events
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/DeliveryEvent"
+      "401":
+        description: Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: Delivery not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

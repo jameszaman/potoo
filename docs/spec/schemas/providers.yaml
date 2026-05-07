@@ -1,0 +1,64 @@
+ProviderType:
+  type: string
+  enum: [resend, sendgrid, ses, twilio, fcm, smtp]
+
+ProviderConnection:
+  type: object
+  required: [id, provider_type, channel, display_name, is_default, is_active, created_at]
+  properties:
+    id:
+      type: string
+      example: pc_01HX1234
+    provider_type:
+      $ref: "#/components/schemas/ProviderType"
+    channel:
+      type: string
+      enum: [email, sms, push]
+      example: email
+    display_name:
+      type: string
+      example: Resend Production
+    is_default:
+      type: boolean
+    is_active:
+      type: boolean
+    created_at:
+      type: string
+      format: date-time
+
+UpdateProviderConnectionRequest:
+  type: object
+  required: [display_name, credentials]
+  properties:
+    display_name:
+      type: string
+    credentials:
+      type: object
+      additionalProperties:
+        type: string
+
+CreateProviderConnectionRequest:
+  type: object
+  required: [provider_type, channel, display_name, credentials]
+  properties:
+    provider_type:
+      $ref: "#/components/schemas/ProviderType"
+    channel:
+      type: string
+      enum: [email, sms, push]
+    display_name:
+      type: string
+      example: Resend Production
+    credentials:
+      type: object
+      additionalProperties:
+        type: string
+      description: >
+        Provider-specific credentials.
+        Resend/SendGrid: `api_key` (and optionally `webhook_key`, `from_email`, `from_name`).
+        SMTP: `host`, `port`, `username`, `password` (and optionally `from_email`, `from_name`).
+      example:
+        api_key: re_123abc
+    is_default:
+      type: boolean
+      default: false

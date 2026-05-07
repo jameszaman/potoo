@@ -1,0 +1,69 @@
+Delivery:
+  type: object
+  required: [id, notification_id, channel, status, attempt_count, created_at]
+  properties:
+    id:
+      type: string
+      example: del_01HX1234
+    notification_id:
+      type: string
+      example: not_01HX1234
+    channel:
+      type: string
+      example: email
+    provider_type:
+      type: string
+      example: resend
+    provider_message_id:
+      type: string
+      example: msg_abc123
+    status:
+      $ref: "#/components/schemas/NotificationStatus"
+    attempt_count:
+      type: integer
+      example: 1
+    last_error_code:
+      type: string
+    last_error_message:
+      type: string
+    sent_at:
+      type: string
+      format: date-time
+    delivered_at:
+      type: string
+      format: date-time
+    failed_at:
+      type: string
+      format: date-time
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+DeliveryEvent:
+  type: object
+  required: [id, delivery_id, event_type, occurred_at, created_at]
+  properties:
+    id:
+      type: string
+      example: evt_01HX1234
+    delivery_id:
+      type: string
+      example: del_01HX1234
+    event_type:
+      type: string
+      enum: [queued, sent, delivered, opened, clicked, bounced, complained, failed]
+      example: delivered
+    provider_type:
+      type: string
+      example: resend
+    provider_event_id:
+      type: string
+    occurred_at:
+      type: string
+      format: date-time
+    created_at:
+      type: string
+      format: date-time

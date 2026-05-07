@@ -1,0 +1,32 @@
+/v1/setup:
+  post:
+    operationId: setup
+    summary: One-time platform bootstrap — creates platform org and first owner
+    description: "Only succeeds once. All subsequent calls return `410 Gone`."
+    tags: [setup]
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/SetupRequest"
+    responses:
+      "201":
+        description: Platform bootstrapped
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuthUser"
+      "400":
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "410":
+        description: Platform already configured
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

@@ -8,7 +8,7 @@ This file is loaded automatically by OpenAI Codex and compatible agents. For Cla
 
 Bring-your-own-provider notification orchestration platform.
 
-- **Backend:** Go 1.22+ with chi router, OpenAPI-first
+- **Backend:** Go 1.22+ with chi router, OpenAPI-first (`docs/spec/openapi.yaml` is source of truth)
 - **Frontend:** Next.js + TypeScript in `apps/web/`
 - **Database:** PostgreSQL 16 via goose migrations and sqlc
 - **Queue:** Redis + Asynq
@@ -26,7 +26,7 @@ make worker            # run background worker
 make web               # run Next.js dev server (:3000)
 make db-up             # start PostgreSQL and Redis
 make migrate           # run database migrations
-make generate          # regenerate from OpenAPI spec and SQL queries
+make generate          # regenerate from OpenAPI spec and SQL queries — run after editing docs/spec/ or internal/db/queries/
 make lint              # run all linters
 make fmt               # format all code
 make test              # run unit tests
@@ -38,10 +38,12 @@ make clean             # delete build artifacts
 
 ## Rules
 
-1. Read `README.md` and `api/openapi.yaml` before editing any code.
-2. Never implement public API behavior without updating `api/openapi.yaml` first.
-3. Never edit generated files in `internal/gen/` or `internal/db/sqlc/`.
-4. Run `make generate` after changing the OpenAPI spec or SQL queries.
+1. Read `README.md` and `docs/spec/openapi.yaml` before editing any code.
+2. Never implement public API behavior without updating `docs/spec/openapi.yaml` first — add the path to the correct domain file under `docs/spec/paths/`.
+3. After updating the spec: run `make generate` immediately. The spec is embedded in the binary at compile time — Swagger UI at `/docs` will not reflect changes until this is done and the server is rebuilt.
+4. After updating the spec: register the new route in `internal/api/server/server.go` under the correct auth tier group.
+5. After updating the spec: update the endpoint table in `README.md` (Method, Path, Tier, Description columns) to match.
+5. Never edit generated files in `internal/gen/openapi/` or `internal/db/sqlc/` — run `make generate` after changing `docs/spec/` or `internal/db/queries/`.
 5. Run `make lint test` before marking any task complete.
 6. Keep handlers thin — business logic belongs in services.
 7. Keep provider-specific code inside `internal/providers/`.
@@ -67,19 +69,20 @@ make clean             # delete build artifacts
 ```
 1.  Restate the feature in one paragraph.
 2.  Identify affected files.
-3.  Update api/openapi.yaml if public API changes.
-4.  Add or update migrations.
-5.  Add or update sqlc queries.
-6.  Run make generate.
-7.  Implement domain types.
-8.  Implement service logic.
-9.  Implement HTTP handler.
-10. Implement worker logic if needed.
-11. Add unit tests.
-12. Add integration tests where useful.
-13. Update docs.
-14. Run make lint test.
-15. Summarize changes and remaining risks.
+3.  Update the relevant file under docs/spec/paths/ if public API changes; add the new path entry to docs/spec/openapi.yaml.
+4.  Run make generate (bundles spec, regenerates Go types and DB queries).
+5.  Register the new route in internal/api/server/server.go under the correct auth tier group.
+6.  Update the endpoint table in README.md.
+7.  Add or update migrations.
+8.  Add or update sqlc queries in internal/db/queries/; run make generate again if queries changed.
+9.  Implement domain types.
+10. Implement service logic.
+11. Implement HTTP handler.
+12. Implement worker logic if needed.
+13. Add unit tests.
+14. Add integration tests where useful.
+15. Run make lint test.
+16. Summarize changes and remaining risks.
 ```
 
 ---

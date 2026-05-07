@@ -1,0 +1,32 @@
+/v1/health:
+  get:
+    operationId: getHealth
+    summary: Health check
+    description: Returns 200 when the API is running.
+    tags: [system]
+    security: []
+    responses:
+      "200":
+        description: API is healthy
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/HealthResponse"
+
+/v1/platform/status:
+  get:
+    operationId: getPlatformStatus
+    summary: Returns whether the platform has been configured
+    tags: [setup]
+    security: []
+    responses:
+      "200":
+        description: Platform status
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_configured]
+              properties:
+                is_configured:
+                  type: boolean

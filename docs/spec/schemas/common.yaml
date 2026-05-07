@@ -1,0 +1,29 @@
+Error:
+  type: object
+  required: [error]
+  properties:
+    error:
+      type: object
+      required: [code, message, request_id]
+      properties:
+        code:
+          type: string
+          example: validation_failed
+        message:
+          type: string
+          example: "Template is missing required variable: first_name"
+        request_id:
+          type: string
+          example: req_01HX1234
+        docs_url:
+          type: string
+          example: https://docs.potoo.com/errors/validation_failed
+
+HealthResponse:
+  type: object
+  required: [status]
+  properties:
+    status:
+      type: string
+      enum: [ok]
+      example: ok

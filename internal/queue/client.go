@@ -17,8 +17,8 @@ func NewClient(redisAddr string) *Client {
 	}
 }
 
-func (c *Client) Enqueue(ctx context.Context, task *asynq.Task) error {
-	_, err := c.c.EnqueueContext(ctx, task)
+func (c *Client) Enqueue(ctx context.Context, task *asynq.Task, opts ...asynq.Option) error {
+	_, err := c.c.EnqueueContext(ctx, task, opts...)
 	if err != nil {
 		return fmt.Errorf("enqueue: %w", err)
 	}

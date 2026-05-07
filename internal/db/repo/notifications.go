@@ -30,12 +30,18 @@ type CreateNotificationParams struct {
 	Channel        db.NotificationChannel
 	RecipientRef   *string
 	Metadata       map[string]string
+	ScheduledAt    *time.Time
 }
 
 func (r *NotificationRepo) Create(ctx context.Context, p CreateNotificationParams) (*db.Notification, error) {
 	meta, err := json.Marshal(p.Metadata)
 	if err != nil {
 		return nil, fmt.Errorf("marshal metadata: %w", err)
+	}
+
+	var scheduledAt pgtype.Timestamptz
+	if p.ScheduledAt != nil {
+		scheduledAt = toPgTimestamptz(*p.ScheduledAt)
 	}
 
 	row, err := r.q.CreateNotification(ctx, db.CreateNotificationParams{
@@ -49,6 +55,7 @@ func (r *NotificationRepo) Create(ctx context.Context, p CreateNotificationParam
 		RecipientRef:   p.RecipientRef,
 		Status:         db.NotificationStatusQueued,
 		Metadata:       meta,
+		ScheduledAt:    scheduledAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create notification: %w", err)

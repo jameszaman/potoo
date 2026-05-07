@@ -8,17 +8,19 @@ package db
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createNotification = `-- name: CreateNotification :one
 INSERT INTO notifications (
     id, organization_id, project_id, environment_id,
     external_id, template_key, channel, recipient_ref,
-    status, metadata
+    status, metadata, scheduled_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
-RETURNING id, organization_id, project_id, environment_id, external_id, template_key, channel, recipient_ref, status, metadata, created_at, updated_at
+RETURNING id, organization_id, project_id, environment_id, external_id, template_key, channel, recipient_ref, status, metadata, created_at, updated_at, scheduled_at
 `
 
 type CreateNotificationParams struct {
@@ -32,6 +34,7 @@ type CreateNotificationParams struct {
 	RecipientRef   *string             `db:"recipient_ref" json:"recipient_ref"`
 	Status         NotificationStatus  `db:"status" json:"status"`
 	Metadata       json.RawMessage     `db:"metadata" json:"metadata"`
+	ScheduledAt    pgtype.Timestamptz  `db:"scheduled_at" json:"scheduled_at"`
 }
 
 func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error) {
@@ -46,6 +49,7 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		arg.RecipientRef,
 		arg.Status,
 		arg.Metadata,
+		arg.ScheduledAt,
 	)
 	var i Notification
 	err := row.Scan(
@@ -61,12 +65,13 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ScheduledAt,
 	)
 	return i, err
 }
 
 const getNotification = `-- name: GetNotification :one
-SELECT id, organization_id, project_id, environment_id, external_id, template_key, channel, recipient_ref, status, metadata, created_at, updated_at FROM notifications
+SELECT id, organization_id, project_id, environment_id, external_id, template_key, channel, recipient_ref, status, metadata, created_at, updated_at, scheduled_at FROM notifications
 WHERE id = $1 AND organization_id = $2
 LIMIT 1
 `
@@ -92,6 +97,7 @@ func (q *Queries) GetNotification(ctx context.Context, arg GetNotificationParams
 		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ScheduledAt,
 	)
 	return i, err
 }
@@ -100,7 +106,7 @@ const updateNotificationStatus = `-- name: UpdateNotificationStatus :one
 UPDATE notifications
 SET status = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, organization_id, project_id, environment_id, external_id, template_key, channel, recipient_ref, status, metadata, created_at, updated_at
+RETURNING id, organization_id, project_id, environment_id, external_id, template_key, channel, recipient_ref, status, metadata, created_at, updated_at, scheduled_at
 `
 
 type UpdateNotificationStatusParams struct {
@@ -124,6 +130,7 @@ func (q *Queries) UpdateNotificationStatus(ctx context.Context, arg UpdateNotifi
 		&i.Metadata,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ScheduledAt,
 	)
 	return i, err
 }

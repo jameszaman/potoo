@@ -407,6 +407,11 @@ components:
           $ref: "#/components/schemas/TemplateRef"
         routing:
           $ref: "#/components/schemas/RoutingOptions"
+        scheduled_at:
+          type: string
+          format: date-time
+          description: ISO 8601 datetime to deliver the notification at. Omit to send immediately.
+          example: "2026-06-01T09:00:00Z"
         idempotency_key:
           type: string
           description: Client-supplied deduplication key. Prefer using the Idempotency-Key header instead.
@@ -455,6 +460,9 @@ components:
           example: user_123
         status:
           $ref: "#/components/schemas/NotificationStatus"
+        scheduled_at:
+          type: string
+          format: date-time
         metadata:
           type: object
           additionalProperties:

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -97,6 +98,12 @@ func (h *Handlers) SendNotification(ctx context.Context, req api.SendNotificatio
 		}
 	}
 
+	var scheduledAt *time.Time
+	if body.ScheduledAt != nil {
+		t := body.ScheduledAt.UTC()
+		scheduledAt = &t
+	}
+
 	notification, err := h.notifications.Create(ctx, repo.CreateNotificationParams{
 		OrganizationID: tenant.OrganizationID,
 		ProjectID:      tenant.ProjectID,
@@ -105,6 +112,7 @@ func (h *Handlers) SendNotification(ctx context.Context, req api.SendNotificatio
 		TemplateKey:    templateKey,
 		RecipientRef:   recipientRef,
 		Metadata:       meta,
+		ScheduledAt:    scheduledAt,
 	})
 	if err != nil {
 		return nil, err
@@ -125,7 +133,12 @@ func (h *Handlers) SendNotification(ctx context.Context, req api.SendNotificatio
 	if err != nil {
 		return nil, err
 	}
-	if err := h.queue.Enqueue(ctx, task); err != nil {
+
+	var enqueueOpts []asynq.Option
+	if scheduledAt != nil && scheduledAt.After(time.Now()) {
+		enqueueOpts = append(enqueueOpts, asynq.ProcessAt(*scheduledAt))
+	}
+	if err := h.queue.Enqueue(ctx, task, enqueueOpts...); err != nil {
 		return nil, err
 	}
 
@@ -616,15 +629,18 @@ func dbNotificationToAPI(n db.Notification) api.Notification {
 		_ = json.Unmarshal(n.Metadata, &meta)
 	}
 	out := api.Notification{
-		Id:          n.ID,
-		Channel:     string(n.Channel),
-		Status:      api.NotificationStatus(n.Status),
-		TemplateKey: n.TemplateKey,
+		Id:           n.ID,
+		Channel:      string(n.Channel),
+		Status:       api.NotificationStatus(n.Status),
+		TemplateKey:  n.TemplateKey,
 		RecipientRef: n.RecipientRef,
-		CreatedAt:   n.CreatedAt.Time,
+		CreatedAt:    n.CreatedAt.Time,
 	}
 	if meta != nil {
 		out.Metadata = &meta
+	}
+	if n.ScheduledAt.Valid {
+		out.ScheduledAt = &n.ScheduledAt.Time
 	}
 	if n.UpdatedAt.Valid {
 		out.UpdatedAt = &n.UpdatedAt.Time

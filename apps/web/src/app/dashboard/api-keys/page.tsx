@@ -229,6 +229,7 @@ export default function ApiKeysPage() {
               <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">recipient</code> — use <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">email</code> for an address or <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">external_id</code> for your own user ID</li>
               <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">template.key</code> — the key from your template (see List templates above)</li>
               <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">template.data</code> — variables injected into the template body</li>
+              <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">scheduled_at</code> — optional ISO 8601 datetime to deliver in the future; omit to send immediately</li>
             </ul>
             {(() => {
               const snippet = `curl -X POST ${API_BASE}/v1/notifications \\
@@ -240,7 +241,8 @@ export default function ApiKeysPage() {
     "template": {
       "key": "welcome",
       "data": { "name": "Alice" }
-    }
+    },
+    "scheduled_at": "2026-06-01T09:00:00Z"
   }'`;
               return (
                 <div className="relative group">

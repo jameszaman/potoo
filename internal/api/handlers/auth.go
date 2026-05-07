@@ -424,7 +424,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, ref
 	http.SetCookie(w, &http.Cookie{
 		Name:     jwtutil.RefreshCookieName,
 		Value:    refreshToken,
-		Path:     "/v1/auth",
+		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(time.Until(refreshExpiry).Seconds()),
@@ -433,7 +433,7 @@ func setAuthCookies(w http.ResponseWriter, accessToken, refreshToken string, ref
 
 func clearAuthCookies(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{Name: jwtutil.AccessCookieName, Value: "", Path: "/", HttpOnly: true, MaxAge: -1})
-	http.SetCookie(w, &http.Cookie{Name: jwtutil.RefreshCookieName, Value: "", Path: "/v1/auth", HttpOnly: true, MaxAge: -1})
+	http.SetCookie(w, &http.Cookie{Name: jwtutil.RefreshCookieName, Value: "", Path: "/", HttpOnly: true, MaxAge: -1})
 }
 
 // --- Argon2id password hashing ---

@@ -478,6 +478,7 @@ type Notification struct {
 	Metadata       json.RawMessage     `db:"metadata" json:"metadata"`
 	CreatedAt      pgtype.Timestamptz  `db:"created_at" json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz  `db:"updated_at" json:"updated_at"`
+	ScheduledAt    pgtype.Timestamptz  `db:"scheduled_at" json:"scheduled_at"`
 }
 
 type OrgInvite struct {

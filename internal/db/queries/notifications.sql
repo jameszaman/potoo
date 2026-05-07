@@ -2,9 +2,9 @@
 INSERT INTO notifications (
     id, organization_id, project_id, environment_id,
     external_id, template_key, channel, recipient_ref,
-    status, metadata
+    status, metadata, scheduled_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
 RETURNING *;
 

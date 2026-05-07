@@ -81,6 +81,8 @@ func New(pool *pgxpool.Pool, q *queue.Client, store storage.Driver, allowedOrigi
 		r.Get("/v1/api-keys", h.ListAPIKeysHTTP)
 		r.Post("/v1/api-keys", h.CreateAPIKeyHTTP)
 		r.Delete("/v1/api-keys/{keyId}", h.RevokeAPIKeyHTTP)
+		r.Post("/v1/invites", h.CreateInviteHTTP)
+		r.Get("/v1/invites", h.ListInvitesHTTP)
 	})
 
 	// ── Tier 3: Session + platform owner ────────────────────────────────────

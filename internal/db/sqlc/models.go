@@ -488,6 +488,7 @@ type OrgInvite struct {
 	UsedAt    pgtype.Timestamptz `db:"used_at" json:"used_at"`
 	ExpiresAt pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
 	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	DeletedAt pgtype.Timestamptz `db:"deleted_at" json:"deleted_at"`
 }
 
 type Organization struct {

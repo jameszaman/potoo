@@ -14,7 +14,7 @@ import (
 const createOrgInvite = `-- name: CreateOrgInvite :one
 INSERT INTO org_invites (id, org_id, created_by, token, expires_at)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, org_id, created_by, token, used_at, expires_at, created_at
+RETURNING id, org_id, created_by, token, used_at, expires_at, created_at, deleted_at
 `
 
 type CreateOrgInviteParams struct {
@@ -42,12 +42,53 @@ func (q *Queries) CreateOrgInvite(ctx context.Context, arg CreateOrgInviteParams
 		&i.UsedAt,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const deleteOrgInvite = `-- name: DeleteOrgInvite :one
+UPDATE org_invites SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id, org_id, created_by, token, used_at, expires_at, created_at, deleted_at
+`
+
+func (q *Queries) DeleteOrgInvite(ctx context.Context, id string) (OrgInvite, error) {
+	row := q.db.QueryRow(ctx, deleteOrgInvite, id)
+	var i OrgInvite
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.CreatedBy,
+		&i.Token,
+		&i.UsedAt,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getOrgInviteByID = `-- name: GetOrgInviteByID :one
+SELECT id, org_id, created_by, token, used_at, expires_at, created_at, deleted_at FROM org_invites WHERE id = $1
+`
+
+func (q *Queries) GetOrgInviteByID(ctx context.Context, id string) (OrgInvite, error) {
+	row := q.db.QueryRow(ctx, getOrgInviteByID, id)
+	var i OrgInvite
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.CreatedBy,
+		&i.Token,
+		&i.UsedAt,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getOrgInviteByToken = `-- name: GetOrgInviteByToken :one
-SELECT id, org_id, created_by, token, used_at, expires_at, created_at FROM org_invites WHERE token = $1
+SELECT id, org_id, created_by, token, used_at, expires_at, created_at, deleted_at FROM org_invites WHERE token = $1
 `
 
 func (q *Queries) GetOrgInviteByToken(ctx context.Context, token string) (OrgInvite, error) {
@@ -61,12 +102,13 @@ func (q *Queries) GetOrgInviteByToken(ctx context.Context, token string) (OrgInv
 		&i.UsedAt,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const listOrgInvites = `-- name: ListOrgInvites :many
-SELECT id, org_id, created_by, token, used_at, expires_at, created_at FROM org_invites WHERE org_id = $1 ORDER BY created_at DESC
+SELECT id, org_id, created_by, token, used_at, expires_at, created_at, deleted_at FROM org_invites WHERE org_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC
 `
 
 func (q *Queries) ListOrgInvites(ctx context.Context, orgID string) ([]OrgInvite, error) {
@@ -86,6 +128,7 @@ func (q *Queries) ListOrgInvites(ctx context.Context, orgID string) ([]OrgInvite
 			&i.UsedAt,
 			&i.ExpiresAt,
 			&i.CreatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -98,7 +141,7 @@ func (q *Queries) ListOrgInvites(ctx context.Context, orgID string) ([]OrgInvite
 }
 
 const markOrgInviteUsed = `-- name: MarkOrgInviteUsed :one
-UPDATE org_invites SET used_at = NOW() WHERE id = $1 RETURNING id, org_id, created_by, token, used_at, expires_at, created_at
+UPDATE org_invites SET used_at = NOW() WHERE id = $1 RETURNING id, org_id, created_by, token, used_at, expires_at, created_at, deleted_at
 `
 
 func (q *Queries) MarkOrgInviteUsed(ctx context.Context, id string) (OrgInvite, error) {
@@ -112,6 +155,7 @@ func (q *Queries) MarkOrgInviteUsed(ctx context.Context, id string) (OrgInvite, 
 		&i.UsedAt,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }

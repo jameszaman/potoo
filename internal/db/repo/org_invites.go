@@ -63,6 +63,19 @@ func (r *OrgInviteRepo) MarkUsed(ctx context.Context, id string) error {
 	return err
 }
 
+func (r *OrgInviteRepo) GetByID(ctx context.Context, id string) (*db.OrgInvite, error) {
+	row, err := r.q.GetOrgInviteByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get invite: %w", err)
+	}
+	return &row, nil
+}
+
+func (r *OrgInviteRepo) Delete(ctx context.Context, id string) error {
+	_, err := r.q.DeleteOrgInvite(ctx, id)
+	return err
+}
+
 func (r *OrgInviteRepo) ListByOrg(ctx context.Context, orgID string) ([]db.OrgInvite, error) {
 	rows, err := r.q.ListOrgInvites(ctx, orgID)
 	if err != nil {

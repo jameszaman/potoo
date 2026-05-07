@@ -1,0 +1,63 @@
+/v1/invites/{inviteId}:
+  delete:
+    operationId: deleteOrgInvite
+    summary: Delete an invite
+    tags: [auth]
+    security:
+      - SessionCookieAuth: []
+    parameters:
+      - name: inviteId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: Deleted
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/invites:
+  post:
+    operationId: createOrgInvite
+    summary: Create a single-use invite link for the current organization
+    description: "Invite token expires after 7 days and can only be used once."
+    tags: [auth]
+    security:
+      - SessionCookieAuth: []
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+    responses:
+      "201":
+        description: Invite created
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/InviteResponse"
+  get:
+    operationId: listOrgInvites
+    summary: List all invites for the current organization
+    tags: [auth]
+    security:
+      - SessionCookieAuth: []
+    responses:
+      "200":
+        description: Invite list
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/InviteResponse"

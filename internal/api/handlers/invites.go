@@ -23,6 +23,31 @@ func (h *Handlers) ListInvites(_ context.Context, _ api.ListInvitesRequestObject
 	return nil, nil
 }
 
+// CreateOrgInvite satisfies the strict interface — real work is done in CreateInviteHTTP.
+func (h *Handlers) CreateOrgInvite(_ context.Context, _ api.CreateOrgInviteRequestObject) (api.CreateOrgInviteResponseObject, error) {
+	return nil, nil
+}
+
+// ListOrgInvites satisfies the strict interface — real work is done in ListInvitesHTTP.
+func (h *Handlers) ListOrgInvites(_ context.Context, _ api.ListOrgInvitesRequestObject) (api.ListOrgInvitesResponseObject, error) {
+	return nil, nil
+}
+
+func (h *Handlers) DeleteOrgInvite(ctx context.Context, req api.DeleteOrgInviteRequestObject) (api.DeleteOrgInviteResponseObject, error) {
+	sess, ok := auth.SessionFromContext(ctx)
+	if !ok {
+		return api.DeleteOrgInvite404JSONResponse(notFoundError(ctx)), nil
+	}
+	invite, err := h.invites.GetByID(ctx, req.InviteId)
+	if err != nil || invite.OrgID != sess.OrgID {
+		return api.DeleteOrgInvite404JSONResponse(notFoundError(ctx)), nil
+	}
+	if err := h.invites.Delete(ctx, req.InviteId); err != nil {
+		return nil, err
+	}
+	return api.DeleteOrgInvite204Response{}, nil
+}
+
 // GetInvite satisfies the strict interface — real work is done in GetInviteHTTP.
 func (h *Handlers) GetInvite(_ context.Context, _ api.GetInviteRequestObject) (api.GetInviteResponseObject, error) {
 	return nil, nil
@@ -68,13 +93,7 @@ func (h *Handlers) CreateInviteHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var body api.CreateInviteRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeJSONError(w, r, http.StatusBadRequest, "invalid_request", "invalid JSON")
-		return
-	}
-
-	org, err := h.orgs.GetByID(r.Context(), body.OrgId)
+	org, err := h.orgs.GetByID(r.Context(), sess.OrgID)
 	if err != nil {
 		writeJSONError(w, r, http.StatusNotFound, "not_found", "Organization not found")
 		return
@@ -92,21 +111,27 @@ func (h *Handlers) CreateInviteHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) ListInvitesHTTP(w http.ResponseWriter, r *http.Request) {
-	orgs, err := h.orgs.ListAll(r.Context())
+	sess, ok := auth.SessionFromContext(r.Context())
+	if !ok {
+		writeJSONError(w, r, http.StatusUnauthorized, "unauthenticated", "Sign in required")
+		return
+	}
+
+	org, err := h.orgs.GetByID(r.Context(), sess.OrgID)
 	if err != nil {
 		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "unexpected error")
 		return
 	}
 
-	out := make([]api.InviteResponse, 0)
-	for _, org := range orgs {
-		invites, err := h.invites.ListByOrg(r.Context(), org.ID)
-		if err != nil {
-			continue
-		}
-		for _, inv := range invites {
-			out = append(out, dbInviteToAPI(inv, org.Name))
-		}
+	invites, err := h.invites.ListByOrg(r.Context(), org.ID)
+	if err != nil {
+		writeJSONError(w, r, http.StatusInternalServerError, "internal_error", "unexpected error")
+		return
+	}
+
+	out := make([]api.InviteResponse, len(invites))
+	for i, inv := range invites {
+		out[i] = dbInviteToAPI(inv, org.Name)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -126,6 +151,10 @@ func dbInviteToAPI(inv db.OrgInvite, orgName string) api.InviteResponse {
 	if inv.UsedAt.Valid {
 		t := inv.UsedAt.Time
 		out.UsedAt = &t
+	}
+	if inv.DeletedAt.Valid {
+		t := inv.DeletedAt.Time
+		out.DeletedAt = &t
 	}
 	return out
 }

@@ -282,10 +282,6 @@ components:
 
     CreateInviteRequest:
       type: object
-      required: [org_id]
-      properties:
-        org_id:
-          type: string
 
     InviteResponse:
       type: object
@@ -303,6 +299,9 @@ components:
           type: string
           format: date-time
         expires_at:
+          type: string
+          format: date-time
+        deleted_at:
           type: string
           format: date-time
         created_at:
@@ -773,6 +772,10 @@ paths:
     $ref: "paths/platform.yaml#/~1v1~1platform~1orgs~1{orgId}"
   /v1/platform/invites:
     $ref: "paths/platform.yaml#/~1v1~1platform~1invites"
+  /v1/invites/{inviteId}:
+    $ref: "paths/invites.yaml#/~1v1~1invites~1{inviteId}"
+  /v1/invites:
+    $ref: "paths/invites.yaml#/~1v1~1invites"
   /v1/api-keys:
     $ref: "paths/api-keys.yaml#/~1v1~1api-keys"
   /v1/api-keys/{keyId}:

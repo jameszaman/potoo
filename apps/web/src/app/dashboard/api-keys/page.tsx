@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { Plus, Trash2, Copy, Check } from "lucide-react";
+import { Plus, Trash2, Copy, Check, Terminal } from "lucide-react";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 interface ApiKey {
   id: string;
@@ -23,6 +25,7 @@ export default function ApiKeysPage() {
   const [saving, setSaving] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -72,6 +75,12 @@ export default function ApiKeysPage() {
     navigator.clipboard.writeText(newKey);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopySnippet = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSnippet(id);
+    setTimeout(() => setCopiedSnippet(null), 2000);
   };
 
   return (
@@ -156,6 +165,123 @@ export default function ApiKeysPage() {
           ))}
         </div>
       )}
+
+      {/* Usage documentation */}
+      <div className="mt-10">
+        <div className="flex items-center gap-2 mb-4">
+          <Terminal size={16} className="text-gray-500" />
+          <h2 className="text-sm font-semibold text-gray-800">Using your API key</h2>
+        </div>
+
+        <div className="space-y-5">
+          {/* Base URL + auth */}
+          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Authentication</p>
+            <p className="text-sm text-gray-700 mb-3">
+              Pass your API key as a <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">Bearer</code> token in the{" "}
+              <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">Authorization</code> header on every request.
+            </p>
+            <div className="relative group">
+              <pre className="bg-gray-950 text-gray-100 text-xs font-mono rounded-md px-4 py-3 overflow-x-auto">{`Authorization: Bearer <your-api-key>`}</pre>
+              <button
+                onClick={() => handleCopySnippet("auth-header", "Authorization: Bearer <your-api-key>")}
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white bg-gray-800 rounded px-2 py-1 text-xs flex items-center gap-1"
+              >
+                {copiedSnippet === "auth-header" ? <Check size={11} /> : <Copy size={11} />}
+                {copiedSnippet === "auth-header" ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Base URL: <span className="font-mono">{API_BASE}</span></p>
+          </div>
+
+          {/* List templates */}
+          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">List templates</p>
+            <p className="text-sm text-gray-700 mb-3">
+              Fetch all templates to find the right <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">key</code> to use when sending a notification.
+            </p>
+            {(() => {
+              const snippet = `curl ${API_BASE}/v1/templates \\
+  -H "Authorization: Bearer <your-api-key>"`;
+              return (
+                <div className="relative group">
+                  <pre className="bg-gray-950 text-gray-100 text-xs font-mono rounded-md px-4 py-3 overflow-x-auto whitespace-pre">{snippet}</pre>
+                  <button
+                    onClick={() => handleCopySnippet("list-templates", snippet)}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white bg-gray-800 rounded px-2 py-1 text-xs flex items-center gap-1"
+                  >
+                    {copiedSnippet === "list-templates" ? <Check size={11} /> : <Copy size={11} />}
+                    {copiedSnippet === "list-templates" ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Send notification */}
+          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Send a notification</p>
+            <p className="text-sm text-gray-700 mb-3">
+              <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">POST /v1/notifications</code> — queues an email delivery and returns immediately.
+            </p>
+            <ul className="text-xs text-gray-500 space-y-1 mb-3 list-disc list-inside">
+              <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">channel</code> — <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">"email"</code>, <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">"sms"</code>, or <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">"push"</code></li>
+              <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">recipient</code> — use <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">email</code> for an address or <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">external_id</code> for your own user ID</li>
+              <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">template.key</code> — the key from your template (see List templates above)</li>
+              <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">template.data</code> — variables injected into the template body</li>
+            </ul>
+            {(() => {
+              const snippet = `curl -X POST ${API_BASE}/v1/notifications \\
+  -H "Authorization: Bearer <your-api-key>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "channel": "email",
+    "recipient": { "email": "user@example.com" },
+    "template": {
+      "key": "welcome",
+      "data": { "name": "Alice" }
+    }
+  }'`;
+              return (
+                <div className="relative group">
+                  <pre className="bg-gray-950 text-gray-100 text-xs font-mono rounded-md px-4 py-3 overflow-x-auto whitespace-pre">{snippet}</pre>
+                  <button
+                    onClick={() => handleCopySnippet("send-notification", snippet)}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white bg-gray-800 rounded px-2 py-1 text-xs flex items-center gap-1"
+                  >
+                    {copiedSnippet === "send-notification" ? <Check size={11} /> : <Copy size={11} />}
+                    {copiedSnippet === "send-notification" ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Check delivery status */}
+          <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Check delivery status</p>
+            <p className="text-sm text-gray-700 mb-3">
+              Use the <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">notification_id</code> returned by the send call to poll status.
+            </p>
+            {(() => {
+              const snippet = `curl ${API_BASE}/v1/notifications/<notification_id> \\
+  -H "Authorization: Bearer <your-api-key>"`;
+              return (
+                <div className="relative group">
+                  <pre className="bg-gray-950 text-gray-100 text-xs font-mono rounded-md px-4 py-3 overflow-x-auto whitespace-pre">{snippet}</pre>
+                  <button
+                    onClick={() => handleCopySnippet("get-notification", snippet)}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white bg-gray-800 rounded px-2 py-1 text-xs flex items-center gap-1"
+                  >
+                    {copiedSnippet === "get-notification" ? <Check size={11} /> : <Copy size={11} />}
+                    {copiedSnippet === "get-notification" ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

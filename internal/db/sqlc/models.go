@@ -425,6 +425,17 @@ type ApiKey struct {
 	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
 
+type Contact struct {
+	ID        string             `db:"id" json:"id"`
+	OrgID     string             `db:"org_id" json:"org_id"`
+	Email     string             `db:"email" json:"email"`
+	Name      *string            `db:"name" json:"name"`
+	Phone     *string            `db:"phone" json:"phone"`
+	Tag       *string            `db:"tag" json:"tag"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type Delivery struct {
 	ID                string              `db:"id" json:"id"`
 	NotificationID    string              `db:"notification_id" json:"notification_id"`

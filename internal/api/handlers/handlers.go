@@ -33,6 +33,7 @@ type Handlers struct {
 	members       *repo.OrgMemberRepo
 	apiKeys       *repo.APIKeyRepo
 	invites       *repo.OrgInviteRepo
+	contacts      *repo.ContactRepo
 	queue         *queue.Client
 	storage       storage.Driver
 }
@@ -50,6 +51,7 @@ func New(pool *pgxpool.Pool, q *queue.Client, store storage.Driver) *Handlers {
 		members:       repo.NewOrgMemberRepo(pool),
 		apiKeys:       repo.NewAPIKeyRepo(pool),
 		invites:       repo.NewOrgInviteRepo(pool),
+		contacts:      repo.NewContactRepo(pool),
 		queue:         q,
 		storage:       store,
 	}
@@ -640,6 +642,14 @@ func notFoundError(ctx context.Context) api.Error {
 
 func notImplError(ctx context.Context) api.Error {
 	return errBody(ctx, "not_implemented", "Not implemented")
+}
+
+func validationError(ctx context.Context, msg string) api.Error {
+	return errBody(ctx, "validation_failed", msg)
+}
+
+func conflictError(ctx context.Context, msg string) api.Error {
+	return errBody(ctx, "conflict", msg)
 }
 
 func dbNotificationToAPI(n db.Notification) api.Notification {

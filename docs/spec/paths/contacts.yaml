@@ -1,0 +1,155 @@
+/v1/contacts:
+  get:
+    operationId: listContacts
+    summary: List contacts
+    tags: [contacts]
+    parameters:
+      - name: tag
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by tag
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: "../openapi.yaml#/components/schemas/Contact"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+  post:
+    operationId: createContact
+    summary: Create a contact
+    tags: [contacts]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateContactRequest"
+    responses:
+      "201":
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Contact"
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: Email already exists
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+/v1/contacts/tags:
+  get:
+    operationId: listContactTags
+    summary: List all distinct contact tags
+    tags: [contacts]
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: string
+
+/v1/contacts/{contactId}:
+  get:
+    operationId: getContact
+    summary: Get a contact
+    tags: [contacts]
+    parameters:
+      - name: contactId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Contact"
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+  patch:
+    operationId: updateContact
+    summary: Update a contact
+    tags: [contacts]
+    parameters:
+      - name: contactId
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/UpdateContactRequest"
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Contact"
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+
+  delete:
+    operationId: deleteContact
+    summary: Delete a contact
+    tags: [contacts]
+    parameters:
+      - name: contactId
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      "204":
+        description: Deleted
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

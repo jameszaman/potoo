@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { Template } from "@/lib/types";
-import { CheckCircle, Clock, X, CalendarClock, Timer, Check } from "lucide-react";
+import { CheckCircle, Clock, X, CalendarClock, Timer, Check, Users, Tag } from "lucide-react";
 import NoApiKey, { isApiKeyError } from "@/components/NoApiKey";
 
 // ── Exact date/time picker ────────────────────────────────────────────────────
@@ -397,6 +397,15 @@ function ScheduleSection({
   );
 }
 
+// ── Contact types ─────────────────────────────────────────────────────────────
+
+interface Contact {
+  id: string;
+  email: string;
+  name?: string;
+  tag?: string;
+}
+
 // ── Send page ─────────────────────────────────────────────────────────────────
 
 export default function SendPage() {
@@ -411,12 +420,17 @@ export default function SendPage() {
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{
-    notification_id: string;
-    delivery_id: string;
-    scheduled_at?: string;
-  } | null>(null);
+  const [results, setResults] = useState<{ email: string; notification_id: string; delivery_id: string; scheduled_at?: string }[]>([]);
   const [error, setError] = useState("");
+
+  // Contact picker state
+  const [recipientMode, setRecipientMode] = useState<"type" | "contacts">("type");
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [contactSearch, setContactSearch] = useState("");
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [filterTagContacts, setFilterTagContacts] = useState("");
+  const [contactsLoaded, setContactsLoaded] = useState(false);
 
   useEffect(() => {
     apiFetch<{ data: Template[] }>("/v1/templates")
@@ -424,33 +438,80 @@ export default function SendPage() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (recipientMode === "contacts" && !contactsLoaded) {
+      Promise.all([
+        apiFetch<{ data: Contact[] }>("/v1/contacts"),
+        apiFetch<{ data: string[] }>("/v1/contacts/tags"),
+      ]).then(([c, t]) => {
+        setContacts(c.data);
+        setTags(t.data);
+        setContactsLoaded(true);
+      }).catch(() => {});
+    }
+  }, [recipientMode, contactsLoaded]);
+
   const selectedTemplate = templates.find((t) => t.key === form.template_key);
 
+  const filteredContacts = contacts.filter((c) => {
+    const matchTag = !filterTagContacts || c.tag === filterTagContacts;
+    const q = contactSearch.toLowerCase();
+    const matchSearch = !q || c.email.toLowerCase().includes(q) || (c.name ?? "").toLowerCase().includes(q);
+    return matchTag && matchSearch;
+  });
+
+  const toggleContact = (id: string) => {
+    setSelectedContactIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllByTag = (tag: string) => {
+    const ids = contacts.filter((c) => c.tag === tag).map((c) => c.id);
+    setSelectedContactIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+
+  const selectedContacts = contacts.filter((c) => selectedContactIds.has(c.id));
+
+  const recipientEmails: string[] =
+    recipientMode === "type"
+      ? form.recipient_email.trim() ? [form.recipient_email.trim()] : []
+      : selectedContacts.map((c) => c.email);
+
+  const parseEmails = (s: string) => s.split(",").map((e) => e.trim()).filter(Boolean);
+
   const handleSend = async () => {
+    if (recipientEmails.length === 0) return;
     setSending(true);
     setError("");
-    setResult(null);
+    setResults([]);
     try {
       let templateData: Record<string, unknown> = {};
       if (form.data.trim()) templateData = JSON.parse(form.data);
 
-      const parseEmails = (s: string) =>
-        s.split(",").map((e) => e.trim()).filter(Boolean);
-
-      const body: Record<string, unknown> = {
-        channel: "email",
-        recipient: { email: form.recipient_email },
-        template: { key: form.template_key, data: templateData },
-      };
-      if (form.cc.trim()) body.cc = parseEmails(form.cc);
-      if (form.bcc.trim()) body.bcc = parseEmails(form.bcc);
-      if (scheduledAt) body.scheduled_at = scheduledAt.toISOString();
-
-      const res = await apiFetch<{ notification_id: string; delivery_id: string }>(
-        "/v1/notifications",
-        { method: "POST", body: JSON.stringify(body) }
-      );
-      setResult({ ...res, scheduled_at: scheduledAt?.toISOString() });
+      const sent: typeof results = [];
+      for (const email of recipientEmails) {
+        const body: Record<string, unknown> = {
+          channel: "email",
+          recipient: { email },
+          template: { key: form.template_key, data: templateData },
+        };
+        if (form.cc.trim()) body.cc = parseEmails(form.cc);
+        if (form.bcc.trim()) body.bcc = parseEmails(form.bcc);
+        if (scheduledAt) body.scheduled_at = scheduledAt.toISOString();
+        const res = await apiFetch<{ notification_id: string; delivery_id: string }>(
+          "/v1/notifications",
+          { method: "POST", body: JSON.stringify(body) }
+        );
+        sent.push({ email, ...res, scheduled_at: scheduledAt?.toISOString() });
+      }
+      setResults(sent);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -465,48 +526,55 @@ export default function SendPage() {
 
       {error && (isApiKeyError(error) ? <NoApiKey /> : <p className="text-sm text-red-600 mb-4">{error}</p>)}
 
-      {result ? (
+      {results.length > 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm max-w-lg">
           <div className="flex items-center gap-2 mb-4">
-            {result.scheduled_at ? (
+            {results[0].scheduled_at ? (
               <>
                 <Clock size={18} className="text-blue-500" />
-                <span className="text-sm font-medium text-blue-700">Notification scheduled</span>
+                <span className="text-sm font-medium text-blue-700">
+                  {results.length === 1 ? "Notification scheduled" : `${results.length} notifications scheduled`}
+                </span>
               </>
             ) : (
               <>
                 <CheckCircle size={18} className="text-green-500" />
-                <span className="text-sm font-medium text-green-700">Notification queued</span>
+                <span className="text-sm font-medium text-green-700">
+                  {results.length === 1 ? "Notification queued" : `${results.length} notifications queued`}
+                </span>
               </>
             )}
           </div>
-          <dl className="space-y-2 text-sm">
-            <div className="flex gap-2">
-              <dt className="text-gray-500 w-36 shrink-0">Notification ID</dt>
-              <dd className="font-mono text-xs bg-gray-50 px-2 py-0.5 rounded">{result.notification_id}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-gray-500 w-36 shrink-0">Delivery ID</dt>
-              <dd className="font-mono text-xs bg-gray-50 px-2 py-0.5 rounded">{result.delivery_id}</dd>
-            </div>
-            {result.scheduled_at && (
-              <div className="flex gap-2">
-                <dt className="text-gray-500 w-36 shrink-0">Scheduled for</dt>
-                <dd className="text-xs text-gray-700">{new Date(result.scheduled_at).toLocaleString()}</dd>
+
+          <div className="space-y-3">
+            {results.map((r) => (
+              <div key={r.delivery_id} className="border border-gray-100 rounded-md p-3 text-xs space-y-1">
+                <p className="font-medium text-gray-800">{r.email}</p>
+                <dl className="space-y-1">
+                  <div className="flex gap-2">
+                    <dt className="text-gray-400 w-28 shrink-0">Notification ID</dt>
+                    <dd className="font-mono bg-gray-50 px-1.5 py-0.5 rounded">{r.notification_id}</dd>
+                  </div>
+                  <div className="flex gap-2">
+                    <dt className="text-gray-400 w-28 shrink-0">Delivery ID</dt>
+                    <dd className="font-mono bg-gray-50 px-1.5 py-0.5 rounded">
+                      <a href={`/dashboard/deliveries?id=${r.delivery_id}`} className="underline text-gray-700">{r.delivery_id}</a>
+                    </dd>
+                  </div>
+                  {r.scheduled_at && (
+                    <div className="flex gap-2">
+                      <dt className="text-gray-400 w-28 shrink-0">Scheduled for</dt>
+                      <dd className="text-gray-600">{new Date(r.scheduled_at).toLocaleString()}</dd>
+                    </div>
+                  )}
+                </dl>
               </div>
-            )}
-          </dl>
-          <div className="mt-4 flex gap-3">
-            <a
-              href={`/dashboard/deliveries?id=${result.delivery_id}`}
-              className="text-sm text-gray-900 underline underline-offset-2"
-            >
-              View delivery →
-            </a>
-            <button onClick={() => setResult(null)} className="text-sm text-gray-500 hover:text-gray-900">
-              Send another
-            </button>
+            ))}
           </div>
+
+          <button onClick={() => setResults([])} className="mt-4 text-sm text-gray-500 hover:text-gray-900">
+            Send another
+          </button>
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm max-w-lg">
@@ -537,45 +605,119 @@ export default function SendPage() {
                       {selectedTemplate.active_version != null
                         ? ` · v${selectedTemplate.active_version} active`
                         : " · no active version"}
-                      </p>
+                    </p>
                   )}
                 </>
               )}
             </div>
 
-            {/* Recipient */}
+            {/* Recipient — mode toggle */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium text-gray-700">Recipient email</label>
-                {!showCcBcc && (
-                  <button
-                    type="button"
-                    onClick={() => setShowCcBcc(true)}
-                    className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
-                  >
-                    + CC / BCC
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-gray-700">Recipient</label>
+                <div className="flex gap-1 p-0.5 bg-gray-100 rounded-md">
+                  <button type="button" onClick={() => setRecipientMode("type")}
+                    className={["text-xs px-2.5 py-1 rounded transition-colors font-medium",
+                      recipientMode === "type" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700",
+                    ].join(" ")}>
+                    Type email
                   </button>
-                )}
+                  <button type="button" onClick={() => setRecipientMode("contacts")}
+                    className={["flex items-center gap-1 text-xs px-2.5 py-1 rounded transition-colors font-medium",
+                      recipientMode === "contacts" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700",
+                    ].join(" ")}>
+                    <Users size={11} /> Contacts
+                  </button>
+                </div>
               </div>
-              <input
-                type="email"
-                value={form.recipient_email}
-                onChange={(e) => setForm({ ...form, recipient_email: e.target.value })}
-                placeholder="user@example.com"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
+
+              {recipientMode === "type" ? (
+                <input
+                  type="email"
+                  value={form.recipient_email}
+                  onChange={(e) => setForm({ ...form, recipient_email: e.target.value })}
+                  placeholder="user@example.com"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+              ) : (
+                <div className="border border-gray-200 rounded-md overflow-hidden">
+                  {/* Search + tag filter */}
+                  <div className="p-2 border-b border-gray-100 space-y-1.5">
+                    <input
+                      type="text"
+                      value={contactSearch}
+                      onChange={(e) => setContactSearch(e.target.value)}
+                      placeholder="Search name or email…"
+                      className="w-full border border-gray-200 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-900"
+                    />
+                    {tags.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        <button type="button" onClick={() => setFilterTagContacts("")}
+                          className={["text-xs px-2 py-0.5 rounded-full border transition-colors",
+                            filterTagContacts === "" ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-500 hover:border-gray-400",
+                          ].join(" ")}>All</button>
+                        {tags.map((t) => (
+                          <button key={t} type="button" onClick={() => setFilterTagContacts(t === filterTagContacts ? "" : t)}
+                            className={["flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors",
+                              filterTagContacts === t ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-500 hover:border-gray-400",
+                            ].join(" ")}>
+                            <Tag size={9} />{t}
+                            {filterTagContacts !== t && (
+                              <span className="text-gray-400 hover:text-gray-700 ml-0.5 underline"
+                                onClick={(e) => { e.stopPropagation(); selectAllByTag(t); }}>
+                                select all
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Contact list */}
+                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-50">
+                    {!contactsLoaded ? (
+                      <p className="text-xs text-gray-400 p-3">Loading…</p>
+                    ) : filteredContacts.length === 0 ? (
+                      <p className="text-xs text-gray-400 p-3">No contacts found.</p>
+                    ) : filteredContacts.map((c) => (
+                      <label key={c.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" checked={selectedContactIds.has(c.id)}
+                          onChange={() => toggleContact(c.id)}
+                          className="rounded border-gray-300 accent-gray-900" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-gray-800 truncate">{c.name ?? c.email}</p>
+                          {c.name && <p className="text-xs text-gray-400 truncate">{c.email}</p>}
+                        </div>
+                        {c.tag && (
+                          <span className="ml-auto shrink-0 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{c.tag}</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                  {selectedContactIds.size > 0 && (
+                    <div className="px-3 py-1.5 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">{selectedContactIds.size} selected</span>
+                      <button type="button" onClick={() => setSelectedContactIds(new Set())}
+                        className="text-xs text-gray-400 hover:text-red-500 transition-colors">Clear</button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* CC / BCC */}
-            {showCcBcc && (
+            {!showCcBcc ? (
+              <button type="button" onClick={() => setShowCcBcc(true)}
+                className="text-xs text-gray-400 hover:text-gray-700 transition-colors -mt-1">
+                + CC / BCC
+              </button>
+            ) : (
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     CC <span className="text-gray-400 font-normal">(comma-separated)</span>
                   </label>
-                  <input
-                    type="text"
-                    value={form.cc}
+                  <input type="text" value={form.cc}
                     onChange={(e) => setForm({ ...form, cc: e.target.value })}
                     placeholder="alice@example.com, bob@example.com"
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
@@ -586,17 +728,10 @@ export default function SendPage() {
                     <label className="text-xs font-medium text-gray-700">
                       BCC <span className="text-gray-400 font-normal">(comma-separated)</span>
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => { setShowCcBcc(false); setForm({ ...form, cc: "", bcc: "" }); }}
-                      className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      Remove
-                    </button>
+                    <button type="button" onClick={() => { setShowCcBcc(false); setForm({ ...form, cc: "", bcc: "" }); }}
+                      className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
                   </div>
-                  <input
-                    type="text"
-                    value={form.bcc}
+                  <input type="text" value={form.bcc}
                     onChange={(e) => setForm({ ...form, bcc: e.target.value })}
                     placeholder="audit@example.com"
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
@@ -610,9 +745,7 @@ export default function SendPage() {
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Template data <span className="text-gray-400">(JSON, optional)</span>
               </label>
-              <textarea
-                rows={3}
-                value={form.data}
+              <textarea rows={3} value={form.data}
                 onChange={(e) => setForm({ ...form, data: e.target.value })}
                 placeholder={`{"first_name": "James"}`}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900"
@@ -628,10 +761,12 @@ export default function SendPage() {
 
           <button
             onClick={handleSend}
-            disabled={sending || !form.template_key || !form.recipient_email}
+            disabled={sending || !form.template_key || recipientEmails.length === 0}
             className="mt-5 bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
           >
-            {sending ? "Sending…" : scheduledAt ? "Schedule notification" : "Send notification"}
+            {sending ? "Sending…" : scheduledAt
+              ? `Schedule${recipientEmails.length > 1 ? ` (${recipientEmails.length})` : ""}`
+              : `Send${recipientEmails.length > 1 ? ` (${recipientEmails.length})` : ""}`}
           </button>
         </div>
       )}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, LayoutDashboard, Mail, FileText, Send, LogOut, ChevronsUpDown, Check, KeyRound, UserPlus } from "lucide-react";
+import { Bell, LayoutDashboard, Mail, FileText, Send, LogOut, ChevronsUpDown, Check, KeyRound, UserPlus, Users } from "lucide-react";
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { logout, listMyOrgs, selectOrg, OrgSummary } from "@/lib/auth";
@@ -13,6 +13,7 @@ const nav = [
   { href: "/dashboard/templates", label: "Templates", icon: FileText },
   { href: "/dashboard/send", label: "Send", icon: Send },
   { href: "/dashboard/deliveries", label: "Deliveries", icon: Bell },
+  { href: "/dashboard/contacts", label: "Contacts", icon: Users },
   { href: "/dashboard/api-keys", label: "API Keys", icon: KeyRound },
   { href: "/dashboard/invites", label: "Invites", icon: UserPlus },
 ];

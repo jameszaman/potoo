@@ -1,0 +1,59 @@
+Contact:
+  type: object
+  required: [id, org_id, email, created_at, updated_at]
+  properties:
+    id:
+      type: string
+      example: cnt_01HX1234
+    org_id:
+      type: string
+    email:
+      type: string
+      format: email
+      example: alice@example.com
+    name:
+      type: string
+      example: Alice Smith
+    phone:
+      type: string
+      example: "+15551234567"
+    tag:
+      type: string
+      example: vip
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+CreateContactRequest:
+  type: object
+  required: [email]
+  properties:
+    email:
+      type: string
+      format: email
+      example: alice@example.com
+    name:
+      type: string
+      example: Alice Smith
+    phone:
+      type: string
+      example: "+15551234567"
+    tag:
+      type: string
+      example: vip
+
+UpdateContactRequest:
+  type: object
+  properties:
+    name:
+      type: string
+      example: Alice Smith
+    phone:
+      type: string
+      example: "+15551234567"
+    tag:
+      type: string
+      example: vip

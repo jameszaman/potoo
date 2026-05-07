@@ -56,6 +56,8 @@ tags:
     description: "**Tier 4.** Send and inspect notifications."
   - name: deliveries
     description: "**Tier 4.** Delivery records and event timelines."
+  - name: contacts
+    description: "**Tier 4.** Saved contacts for reuse when sending notifications."
   - name: webhooks
     description: "**Tier 1.** Inbound provider webhook endpoints. Signature verification is performed internally."
 
@@ -317,6 +319,13 @@ components:
         expires_at:
           type: string
           format: date-time
+
+    Contact:
+      $ref: "schemas/contacts.yaml#/Contact"
+    CreateContactRequest:
+      $ref: "schemas/contacts.yaml#/CreateContactRequest"
+    UpdateContactRequest:
+      $ref: "schemas/contacts.yaml#/UpdateContactRequest"
 
     LoginRequest:
       type: object
@@ -798,6 +807,12 @@ paths:
     $ref: "paths/invites.yaml#/~1v1~1invites~1{inviteId}"
   /v1/invites:
     $ref: "paths/invites.yaml#/~1v1~1invites"
+  /v1/contacts:
+    $ref: "paths/contacts.yaml#/~1v1~1contacts"
+  /v1/contacts/tags:
+    $ref: "paths/contacts.yaml#/~1v1~1contacts~1tags"
+  /v1/contacts/{contactId}:
+    $ref: "paths/contacts.yaml#/~1v1~1contacts~1{contactId}"
   /v1/api-keys:
     $ref: "paths/api-keys.yaml#/~1v1~1api-keys"
   /v1/api-keys/{keyId}:

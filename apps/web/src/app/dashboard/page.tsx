@@ -10,6 +10,7 @@ export default function DashboardPage() {
           { label: "Templates", desc: "Create and manage email templates with variables", href: "/dashboard/templates" },
           { label: "Send", desc: "Send a test notification from the dashboard", href: "/dashboard/send" },
           { label: "Deliveries", desc: "View delivery logs, status, and event timelines", href: "/dashboard/deliveries" },
+          { label: "Contacts", desc: "Save recipients and group them by tag for easy reuse", href: "/dashboard/contacts" },
           { label: "API Keys", desc: "Generate keys to authenticate API requests from your app", href: "/dashboard/api-keys" },
           { label: "Invites", desc: "Create single-use invite links for your organization", href: "/dashboard/invites" },
         ].map((card) => (

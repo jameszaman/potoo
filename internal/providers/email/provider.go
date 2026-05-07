@@ -10,6 +10,8 @@ type SendInput struct {
 	To      string
 	From    string
 	ReplyTo string
+	CC      []string
+	BCC     []string
 	Subject string
 	HTML    string
 	Text    string

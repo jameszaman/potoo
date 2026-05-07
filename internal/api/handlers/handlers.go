@@ -97,6 +97,25 @@ func (h *Handlers) SendNotification(ctx context.Context, req api.SendNotificatio
 			}
 		}
 	}
+	// Store CC/BCC as JSON strings in metadata so the worker can pass them to the provider.
+	if body.Cc != nil && len(*body.Cc) > 0 {
+		addrs := make([]string, len(*body.Cc))
+		for i, a := range *body.Cc {
+			addrs[i] = string(a)
+		}
+		if b, err := json.Marshal(addrs); err == nil {
+			meta["__cc"] = string(b)
+		}
+	}
+	if body.Bcc != nil && len(*body.Bcc) > 0 {
+		addrs := make([]string, len(*body.Bcc))
+		for i, a := range *body.Bcc {
+			addrs[i] = string(a)
+		}
+		if b, err := json.Marshal(addrs); err == nil {
+			meta["__bcc"] = string(b)
+		}
+	}
 
 	var scheduledAt *time.Time
 	if body.ScheduledAt != nil {

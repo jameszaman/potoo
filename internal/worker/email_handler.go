@@ -177,9 +177,23 @@ func (h *EmailHandler) buildSendInput(ctx context.Context, n *db.Notification, c
 		from = fmt.Sprintf("%s <%s>", fromName, from)
 	}
 
+	var cc, bcc []string
+	if raw, ok := data["__cc"]; ok {
+		if s, ok := raw.(string); ok {
+			_ = json.Unmarshal([]byte(s), &cc)
+		}
+	}
+	if raw, ok := data["__bcc"]; ok {
+		if s, ok := raw.(string); ok {
+			_ = json.Unmarshal([]byte(s), &bcc)
+		}
+	}
+
 	return email.SendInput{
 		To:      recipient,
 		From:    from,
+		CC:      cc,
+		BCC:     bcc,
 		Subject: subject,
 		HTML:    htmlBody,
 		Text:    textBody,

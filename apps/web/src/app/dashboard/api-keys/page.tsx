@@ -227,6 +227,7 @@ export default function ApiKeysPage() {
             <ul className="text-xs text-gray-500 space-y-1 mb-3 list-disc list-inside">
               <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">channel</code> — <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">"email"</code>, <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">"sms"</code>, or <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">"push"</code></li>
               <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">recipient</code> — use <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">email</code> for an address or <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">external_id</code> for your own user ID</li>
+              <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">cc</code> / <code className="bg-gray-100 px-1 py-0.5 rounded font-mono">bcc</code> — optional arrays of email addresses (email channel only)</li>
               <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">template.key</code> — the key from your template (see List templates above)</li>
               <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">template.data</code> — variables injected into the template body</li>
               <li><code className="bg-gray-100 px-1 py-0.5 rounded font-mono">scheduled_at</code> — optional ISO 8601 datetime to deliver in the future; omit to send immediately</li>

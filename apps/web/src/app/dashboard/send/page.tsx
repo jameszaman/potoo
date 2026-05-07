@@ -405,7 +405,10 @@ export default function SendPage() {
     template_key: "",
     recipient_email: "",
     data: "",
+    cc: "",
+    bcc: "",
   });
+  const [showCcBcc, setShowCcBcc] = useState(false);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{
@@ -431,14 +434,17 @@ export default function SendPage() {
       let templateData: Record<string, unknown> = {};
       if (form.data.trim()) templateData = JSON.parse(form.data);
 
+      const parseEmails = (s: string) =>
+        s.split(",").map((e) => e.trim()).filter(Boolean);
+
       const body: Record<string, unknown> = {
         channel: "email",
         recipient: { email: form.recipient_email },
         template: { key: form.template_key, data: templateData },
       };
-      if (scheduledAt) {
-        body.scheduled_at = scheduledAt.toISOString();
-      }
+      if (form.cc.trim()) body.cc = parseEmails(form.cc);
+      if (form.bcc.trim()) body.bcc = parseEmails(form.bcc);
+      if (scheduledAt) body.scheduled_at = scheduledAt.toISOString();
 
       const res = await apiFetch<{ notification_id: string; delivery_id: string }>(
         "/v1/notifications",
@@ -539,7 +545,18 @@ export default function SendPage() {
 
             {/* Recipient */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Recipient email</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-gray-700">Recipient email</label>
+                {!showCcBcc && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCcBcc(true)}
+                    className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
+                  >
+                    + CC / BCC
+                  </button>
+                )}
+              </div>
               <input
                 type="email"
                 value={form.recipient_email}
@@ -548,6 +565,45 @@ export default function SendPage() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </div>
+
+            {/* CC / BCC */}
+            {showCcBcc && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    CC <span className="text-gray-400 font-normal">(comma-separated)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={form.cc}
+                    onChange={(e) => setForm({ ...form, cc: e.target.value })}
+                    placeholder="alice@example.com, bob@example.com"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium text-gray-700">
+                      BCC <span className="text-gray-400 font-normal">(comma-separated)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setShowCcBcc(false); setForm({ ...form, cc: "", bcc: "" }); }}
+                      className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={form.bcc}
+                    onChange={(e) => setForm({ ...form, bcc: e.target.value })}
+                    placeholder="audit@example.com"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Template data */}
             <div>

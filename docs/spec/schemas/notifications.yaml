@@ -43,6 +43,20 @@ SendNotificationRequest:
       example: email
     recipient:
       $ref: "#/components/schemas/Recipient"
+    cc:
+      type: array
+      items:
+        type: string
+        format: email
+      description: CC recipients (email channel only).
+      example: [manager@example.com]
+    bcc:
+      type: array
+      items:
+        type: string
+        format: email
+      description: BCC recipients (email channel only).
+      example: [audit@example.com]
     template:
       $ref: "#/components/schemas/TemplateRef"
     routing:

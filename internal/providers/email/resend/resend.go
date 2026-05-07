@@ -32,13 +32,20 @@ func New(apiKey, webhookKey string) *Adapter {
 }
 
 func (a *Adapter) Send(ctx context.Context, input email.SendInput) (email.SendResult, error) {
-	body, _ := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"from":    input.From,
 		"to":      []string{input.To},
 		"subject": input.Subject,
 		"html":    input.HTML,
 		"text":    input.Text,
-	})
+	}
+	if len(input.CC) > 0 {
+		payload["cc"] = input.CC
+	}
+	if len(input.BCC) > 0 {
+		payload["bcc"] = input.BCC
+	}
+	body, _ := json.Marshal(payload)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/emails", bytes.NewReader(body))
 	if err != nil {

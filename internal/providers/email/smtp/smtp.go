@@ -72,6 +72,16 @@ func (a *Adapter) Send(ctx context.Context, input email.SendInput) (email.SendRe
 	if err := m.To(input.To); err != nil {
 		return email.SendResult{}, fmt.Errorf("smtp: set to: %w", err)
 	}
+	if len(input.CC) > 0 {
+		if err := m.Cc(input.CC...); err != nil {
+			return email.SendResult{}, fmt.Errorf("smtp: set cc: %w", err)
+		}
+	}
+	if len(input.BCC) > 0 {
+		if err := m.Bcc(input.BCC...); err != nil {
+			return email.SendResult{}, fmt.Errorf("smtp: set bcc: %w", err)
+		}
+	}
 	m.Subject(input.Subject)
 
 	// multipart/alternative: clients pick the last part they support.
